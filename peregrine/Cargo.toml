@@ -1,0 +1,8 @@
+[package]
+name = "peregrine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pollster = "0.3.0"
+tethys = { path = "../tethys" }
