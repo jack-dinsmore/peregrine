@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tethys-proc = { path = "../tethys-proc" }
 winit = { version = "0.29", features = ["rwh_05"] }
 env_logger = "0.11.3"
 log = "0.4"
-wgpu = "0.20.1"
+wgpu = "22.0.0"
 bytemuck = { version = "1.12", features = [ "derive" ] }
+image = { version = "0.24", features = [ "png", "jpeg" ] }
+pollster = "0.3.0"
+cgmath = "0.18.0"

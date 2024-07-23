@@ -13,10 +13,11 @@ impl App for Peregrine {
         let shader = Shader::new::<TexVertex>(graphics, include_str!("../shaders/shader.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
+            ShaderBinding::Texture,
         ]);
         let camera = Camera::new(&graphics, Vector3::new(0., 0., 0.), 1.57, 0., 0.1, 10., 1.);
-        let model = Model::new(graphics, &shader, load_obj!("assets/parts/tank.obj"));
-        let object = Object::new(model.clone(), Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.));
+        let model = Model::new(graphics, load_obj!("assets/parts/tank.obj"));
+        let object = Object::new(graphics, model.clone(), Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.));
         Self {
             exit: false,
             shader,
@@ -25,8 +26,30 @@ impl App for Peregrine {
         }
     }
 
-    fn tick(&mut self) {
-        self.camera.update();
+    fn tick(&mut self, key_state: &KeyState) {
+        if key_state.is_down(Key::Char('w')) {
+            self.camera.position.x += 0.01;
+        }
+
+        if key_state.is_down(Key::Char('s')) {
+            self.camera.position.x -= 0.01;
+        }
+
+        if key_state.is_down(Key::Char('a')) {
+            self.camera.position.y -= 0.01;
+        }
+
+        if key_state.is_down(Key::Char('d')) {
+            self.camera.position.y += 0.01;
+        }
+
+        if key_state.is_down(Key::Char('q')) {
+            self.camera.position.z += 0.01;
+        }
+
+        if key_state.is_down(Key::Char('e')) {
+            self.camera.position.z -= 0.01;
+        }
     }
 
     fn exit_check(&self) -> bool {
@@ -41,14 +64,14 @@ impl App for Peregrine {
         match key {
             Key::Escape => self.exit = true,
             Key::Char(_) => (),
-        } 
+        }
     }
     
     fn render(&self, render_pass: RenderPass) {
         render_pass
             .set_camera(&self.camera)
             .set_shader(&self.shader)
-            .render(&[self.object.clone()])
+            .render(&[&self.object])
         ;
     }
 }

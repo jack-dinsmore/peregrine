@@ -1,0 +1,12 @@
+/Users/jtd/Documents/personal/code/rust/peregrine/tethys-proc/target/debug/deps/libproc_macro2-dbf9dea37ae1a845.rmeta: /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/lib.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/marker.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/parse.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/rcvec.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/detection.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/fallback.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/extra.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/wrapper.rs
+
+/Users/jtd/Documents/personal/code/rust/peregrine/tethys-proc/target/debug/deps/proc_macro2-dbf9dea37ae1a845.d: /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/lib.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/marker.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/parse.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/rcvec.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/detection.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/fallback.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/extra.rs /Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/wrapper.rs
+
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/lib.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/marker.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/parse.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/rcvec.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/detection.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/fallback.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/extra.rs:
+/Users/jtd/.cargo/registry/src/index.crates.io-6f17d22bba15001f/proc-macro2-1.0.86/src/wrapper.rs:
