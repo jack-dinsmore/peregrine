@@ -10,6 +10,7 @@ use camera::Camera;
 use model::{Material, Mesh};
 use object::Object;
 use shader::Shader;
+use wgpu::SurfaceConfiguration;
 use winit::window::Window;
 
 use crate::App;
@@ -38,7 +39,14 @@ impl<'a> RenderPass<'a> {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &graphics.depth_texture_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             occlusion_query_set: None,
             timestamp_writes: None,
         });
@@ -106,6 +114,7 @@ pub struct Graphics<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     window: &'a Window,
+    depth_texture_view: wgpu::TextureView,
 }
 
 impl<'a> Graphics<'a> {
@@ -157,6 +166,9 @@ impl<'a> Graphics<'a> {
         };
 
         surface.configure(&device, &config);
+
+        let (_depth_texture, depth_texture_view, _depth_sampler) = Self::make_depth_texture(&device, &config);
+
         
         Self {
             window,
@@ -165,7 +177,44 @@ impl<'a> Graphics<'a> {
             queue,
             config,
             size,
+            depth_texture_view,
         }
+    }
+    pub fn make_depth_texture(device: &wgpu::Device, config: &SurfaceConfiguration) -> (wgpu::Texture, wgpu::TextureView, wgpu::Sampler) {
+        let size = wgpu::Extent3d { // 2.
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let desc = wgpu::TextureDescriptor {
+            label: Some("Depth_texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT // 3.
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+        let texture = device.create_texture(&desc);
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(
+            &wgpu::SamplerDescriptor { // 4.
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                compare: Some(wgpu::CompareFunction::LessEqual), // 5.
+                lod_min_clamp: 0.0,
+                lod_max_clamp: 100.0,
+                ..Default::default()
+            }
+        );
+        (texture, view, sampler)
     }
 
     pub fn window(&self) -> &Window {

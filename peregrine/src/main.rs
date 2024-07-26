@@ -15,7 +15,7 @@ impl App for Peregrine {
             ShaderBinding::Model,
             ShaderBinding::Texture,
         ]);
-        let camera = Camera::new(&graphics, Vector3::new(0., 0., 0.), 1.57, 0., 0.1, 10., 1.);
+        let camera = Camera::new(&graphics, Vector3::new(0., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let model = Model::new(graphics, load_obj!("assets/parts/tank.obj"));
         let object = Object::new(graphics, model.clone(), Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.));
         Self {

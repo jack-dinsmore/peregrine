@@ -3,7 +3,6 @@ use wgpu::util::DeviceExt;
 
 use super::{shader::ShaderBinding, Graphics};
 
-#[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
@@ -91,7 +90,7 @@ impl Camera {
     }
 
     pub fn get_view_proj(&self) -> Matrix4<f32> {
-        self.get_proj() * self.get_view()
+        OPENGL_TO_WGPU_MATRIX * self.get_proj() * self.get_view()
     }
 
     pub fn update(&self, graphics: &Graphics) {

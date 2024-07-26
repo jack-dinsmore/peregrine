@@ -88,9 +88,11 @@ impl Ord for Model {
 }
 
 impl Mesh {
+
     fn new(graphics: &Graphics, mesh: &LoadMesh) -> Self {
         let mut vertices = Vec::with_capacity(mesh.positions.len());
         let n_triangles = mesh.positions.len()/3;
+
         for i in 0..n_triangles {
             vertices.push(TexVertex {
                 position: [
@@ -105,7 +107,7 @@ impl Mesh {
                 ],
                 tex_coords: [
                     mesh.texcoords[2*i + 0],
-                    mesh.texcoords[2*i + 1],
+                    1.-mesh.texcoords[2*i + 1],
                 ],
             })
         }
@@ -118,10 +120,11 @@ impl Mesh {
             }
         );
 
+        let indices = mesh.indices.iter().map(|i| *i as u16).collect::<Vec<_>>();
         let index_buffer = graphics.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&mesh.indices),
+                contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsages::INDEX,
             }
         );
