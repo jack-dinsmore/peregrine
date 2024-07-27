@@ -70,7 +70,7 @@ impl App for Peregrine {
     fn key_down(&mut self, key: Key) {
         match key {
             Key::Escape => self.exit = true,
-            Key::Char(_) => (),
+            _ => (),
         }
     }
 
