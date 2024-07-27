@@ -4,7 +4,8 @@ struct CameraUniform {
 
 };
 struct ModelUniform {
-    model_proj: mat4x4<f32>,
+    worl: mat4x4<f32>,
+    rot_mat: mat4x4<f32>,
 };
 struct MaterialUniform {
     light_info: vec4<f32>
@@ -20,6 +21,7 @@ struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
     @location(2) normal: vec3<f32>,
+    @location(3) normal_coords: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -27,6 +29,7 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
     @location(1) world_position: vec4<f32>,
     @location(2) normal: vec3<f32>,
+    @location(3) normal_coords: vec2<f32>,
 }
 
 @vertex
@@ -35,8 +38,9 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = in.tex_coords;
-    out.normal = in.normal;
-    out.world_position = model.model_proj * vec4<f32>(in.position, 1.0);
+    out.normal_coords = in.normal_coords;
+    out.normal = (model.rot_mat * vec4<f32>(in.normal, 1.)).xyz;
+    out.world_position = model.worl * vec4<f32>(in.position, 1.0);
     out.clip_position = camera.view_proj * out.world_position;
     return out;
 }
@@ -59,7 +63,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Lighting
     let pos = in.world_position.xyz;
     let surface_to_light = normalize(camera.light_pos.xyz - pos);
-    let bump_normal = textureSample(t_normal, s_normal, in.tex_coords*2).rgb - vec3(0.5, 0.5, 0.5);
+    let bump_normal = textureSample(t_normal, s_normal, in.normal_coords).rgb - vec3(0.5, 0.5, 0.5);
     let normal = normalize(in.normal + bump_normal);
     let surface_to_light_dot_normal = dot(surface_to_light, normal);
     if surface_to_light_dot_normal < 0. {

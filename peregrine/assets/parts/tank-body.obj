@@ -1,6 +1,6 @@
 # Blender 3.2.1
 # www.blender.org
-mtllib tank.mtl
+mtllib tank-body.mtl
 o TankBody
 v -0.000000 -0.500000 -0.500000
 v -0.000000 0.500000 -0.500000

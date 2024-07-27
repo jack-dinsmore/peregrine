@@ -14,19 +14,16 @@ pub struct Object {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct ModelUniform {
-    view_proj: [[f32; 4]; 4],
-}
-impl ModelUniform {
-    fn new(matrix: Matrix4<f32>) -> Self {
-        Self {
-            view_proj: matrix.into()
-        }
-    }
+    world: [[f32; 4]; 4],
+    rot: [[f32; 4]; 4],
 }
 
 impl Object {
     pub fn new(graphics: &Graphics, model: Model, position: Vector3<f64>, orientation: Quaternion<f64>) -> Self {
-        let uniform = ModelUniform::new(Matrix4::identity());
+        let uniform = ModelUniform {
+            world: Matrix4::identity().into(),
+            rot: Matrix4::identity().into(),
+        };
 
         let model_buffer = graphics.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -56,26 +53,29 @@ impl Object {
         }
     }
 
-    pub(crate) fn get_world(&self, camera: &Camera) -> Matrix4<f32> {
+    fn get_uniform(&self, camera: &Camera) -> ModelUniform {
         let difference = self.position - camera.position;
-        let quat = Quaternion::new(
+        let rot = Matrix4::from(Quaternion::new(
             self.orientation.s as f32,
             self.orientation.v.x as f32,
             self.orientation.v.y as f32,
             self.orientation.v.z as f32,
-        );
-        Matrix4::from(quat) *
-        Matrix4::from_translation(
+        ));
+        let world = Matrix4::from_translation(
             Vector3::new(
                 difference.x as f32,
                 difference.y as f32,
                 difference.z as f32,
             )
-        )
+        ) * rot;
+        ModelUniform {
+            rot: rot.into(),
+            world: world.into(),
+        }
     }
 
     pub(crate) fn update(&self, graphics: &Graphics, camera: &Camera) {
-        let uniform = ModelUniform::new(self.get_world(camera));
+        let uniform = self.get_uniform(camera);
         graphics.queue.write_buffer(&self.model_buffer, 0, bytemuck::cast_slice(&[uniform]))
     }
 }

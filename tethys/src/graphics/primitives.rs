@@ -9,6 +9,7 @@ pub struct TexVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
     pub normal: [f32; 3],
+    pub normal_coords: [f32; 2],
 }
 
 impl Vertex for TexVertex {
@@ -31,6 +32,11 @@ impl Vertex for TexVertex {
                     offset: std::mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
             ]
         }

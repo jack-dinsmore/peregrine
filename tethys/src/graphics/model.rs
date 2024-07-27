@@ -106,6 +106,19 @@ impl Mesh {
         let mut vertices = Vec::with_capacity(mesh.positions.len());
         let n_triangles = mesh.positions.len()/3;
 
+        let rescale = {
+            let l_phys = (
+                (mesh.positions[0] - mesh.positions[3]).powi(2)
+                + (mesh.positions[1] - mesh.positions[4]).powi(2)
+                + (mesh.positions[2] - mesh.positions[5]).powi(2)
+            ).sqrt();
+            let l_tex = (
+                (mesh.texcoords[0] - mesh.texcoords[2]).powi(2)
+                + (mesh.texcoords[1] - mesh.texcoords[3]).powi(2)
+            ).sqrt();
+            l_phys / l_tex            
+        };
+
         for i in 0..n_triangles {
             vertices.push(TexVertex {
                 position: [
@@ -122,6 +135,10 @@ impl Mesh {
                     mesh.texcoords[2*i + 0],
                     1.-mesh.texcoords[2*i + 1],
                 ],
+                normal_coords: [
+                    mesh.texcoords[2*i + 0] * rescale,
+                    (1.-mesh.texcoords[2*i + 1]) * rescale,
+                ]
             })
         }
         

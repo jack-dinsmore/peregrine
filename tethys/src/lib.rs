@@ -1,5 +1,6 @@
 pub extern crate tethys_proc;
 pub mod graphics;
+pub mod physics;
 pub mod io;
 
 pub mod prelude {
@@ -11,8 +12,11 @@ pub mod prelude {
     pub use crate::graphics::camera::Camera;
     pub use crate::graphics::object::Object;
     pub use crate::graphics::primitives::{Vertex, TexVertex};
+    pub use crate::physics::RigidBody;
     pub use tethys_proc::load_obj;
 }
+
+use std::time::Instant;
 
 use graphics::{Graphics, RenderPass};
 use io::key::KeyState;
@@ -23,7 +27,7 @@ pub use io::key::Key;
 
 pub trait App {
     fn new(graphics: &Graphics) -> Self;
-    fn tick(&mut self, graphics: &Graphics, key_state: &KeyState);
+    fn tick(&mut self, graphics: &Graphics, key_state: &KeyState, delta_t: f64);
     fn render(&self, render_pass: RenderPass);
     fn exit_check(&self) -> bool;
     
@@ -43,9 +47,12 @@ async fn main_internal<T: App>() {
     let mut app = T::new(&graphics);
     let mut surface_configured = false;
     let mut key_state = KeyState::new();
+    let mut time = Instant::now();
 
     event_loop.run(move |event, control_flow| {
-        app.tick(&graphics, &key_state);
+        let delta_t = time.elapsed().as_micros() as f64/ 1e6;
+        time = Instant::now();
+        app.tick(&graphics, &key_state, delta_t);
         
         match event {
             Event::WindowEvent { ref event, window_id, } if window_id == graphics.window().id() => match event {
