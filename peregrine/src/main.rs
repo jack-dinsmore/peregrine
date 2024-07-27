@@ -32,27 +32,27 @@ impl App for Peregrine {
     fn tick(&mut self, graphics: &Graphics, key_state: &KeyState) {
         graphics.set_mouse_pos((self.size.0/2, self.size.1/2));
         if key_state.is_down(Key::Char('w')) {
-            self.camera.position.x += 0.01;
+            self.camera.position += 0.01 * self.camera.get_forward();
         }
 
         if key_state.is_down(Key::Char('s')) {
-            self.camera.position.x -= 0.01;
+            self.camera.position -= 0.01 * self.camera.get_forward();
         }
 
         if key_state.is_down(Key::Char('a')) {
-            self.camera.position.y += 0.01;
+            self.camera.position += 0.01 * self.camera.get_left();
         }
 
         if key_state.is_down(Key::Char('d')) {
-            self.camera.position.y -= 0.01;
+            self.camera.position -= 0.01 * self.camera.get_left();
         }
 
         if key_state.is_down(Key::Char('q')) {
-            self.camera.position.z += 0.01;
+            self.camera.position += 0.01 * self.camera.get_up();
         }
 
         if key_state.is_down(Key::Char('e')) {
-            self.camera.position.z -= 0.01;
+            self.camera.position -= 0.01 * self.camera.get_up();
         }
     }
 
@@ -76,6 +76,7 @@ impl App for Peregrine {
         let dy = (pos.1 - self.size.1 as f64 / 2.) / 300.;
         self.camera.phi += -dx as f32;
         self.camera.theta += dy as f32;
+        self.camera.theta = self.camera.theta.clamp(0., std::f32::consts::PI);
     }
     
     fn render(&self, render_pass: RenderPass) {

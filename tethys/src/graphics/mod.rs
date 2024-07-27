@@ -180,6 +180,11 @@ impl<'a> Graphics<'a> {
             depth_texture_view,
         }
     }
+
+    pub fn get_size(&self) -> (u32, u32) {
+        (self.size.width, self.size.height)
+    }
+
     pub fn make_depth_texture(device: &wgpu::Device, config: &SurfaceConfiguration) -> (wgpu::Texture, wgpu::TextureView, wgpu::Sampler) {
         let size = wgpu::Extent3d { // 2.
             width: config.width,
@@ -244,5 +249,9 @@ impl<'a> Graphics<'a> {
         output.present();
     
         Ok(())
+    }
+    
+    pub fn set_mouse_pos(&self, size: (u32, u32)) {
+        self.window.set_cursor_position(winit::dpi::PhysicalPosition{x: size.0, y: size.1}).unwrap();
     }
 }

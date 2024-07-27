@@ -5,6 +5,19 @@ use crate::graphics::{shader::ShaderBinding, primitives::TexVertex};
 
 use super::Graphics;
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct MateriallUniform {
+    light_info: [f32; 4],
+}
+impl MateriallUniform {
+    fn new(diffuse: f32, specular: f32, shininess: f32) -> Self {
+        Self {
+            light_info: [diffuse, specular, shininess, 0.]
+        }
+    }
+}
+
 pub struct LoadedObj {
     pub meshes: Vec<LoadMesh>,
     pub materials: Vec<LoadMaterial>,
@@ -205,6 +218,16 @@ impl Material {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
+
+        let uniform = MateriallUniform::new(1., 1., material.shininess);
+
+        let material_buffer = graphics.device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Material Buffer"),
+                contents: bytemuck::cast_slice(&[uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
         
         let bind_group = graphics.device.create_bind_group(
             &wgpu::BindGroupDescriptor {
@@ -217,9 +240,13 @@ impl Material {
                     wgpu::BindGroupEntry {
                         binding: 1,
                         resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: material_buffer.as_entire_binding(),
                     }
                 ],
-                label: Some("model_bind_group"),
+                label: Some("material_bind_group"),
             }
         );
 

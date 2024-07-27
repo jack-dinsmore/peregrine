@@ -18,12 +18,14 @@ struct CameraUniform {
     // We can't use cgmath with bytemuck directly, so we'll have
     // to convert the Matrix4 into a 4x4 f32 array
     view_proj: [[f32; 4]; 4],
+    light_pos: [f32; 4],
 }
 
 impl CameraUniform {
     fn new(matrix: Matrix4<f32>) -> Self {
         Self {
-            view_proj: matrix.into()
+            view_proj: matrix.into(),
+            light_pos: [0., 0., 0., 0.]
         }
     }
 }
@@ -42,7 +44,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(graphics: &Graphics, position: Vector3<f64>, theta: f32, phi: f32, znear: f32, zfar: f32, fovy: f32) -> Self {
-        let aspect = graphics.size.height as f32 / graphics.size.width as f32;
+        let aspect = graphics.size.width as f32 / graphics.size.height as f32;
         let uniform = CameraUniform::new(Matrix4::identity());
 
         let camera_buffer = graphics.device.create_buffer_init(
@@ -80,8 +82,8 @@ impl Camera {
     pub fn get_view(&self) -> Matrix4<f32> {
         Matrix4::look_to_rh(
             Point3::new(0., 0., 0.),
-            Vector3::new(self.phi.cos() * self.theta.sin(), self.phi.sin() * self.theta.sin(), self.theta.cos()),
-            Vector3::new(0., 0., 1.),
+            self.get_forward(),
+            self.get_up(),
         )
     }
 
@@ -96,5 +98,29 @@ impl Camera {
     pub fn update(&self, graphics: &Graphics) {
         let uniform = CameraUniform::new(self.get_view_proj());
         graphics.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[uniform]))
+    }
+    
+    pub fn get_forward<T: From<f32>>(&self) -> Vector3<T> {
+        Vector3::new(
+            T::from(self.phi.cos() * self.theta.sin()),
+            T::from(self.phi.sin() * self.theta.sin()),
+            T::from(self.theta.cos())
+        )
+    }
+    
+    pub fn get_left<T: From<f32>>(&self) -> Vector3<T> {
+        Vector3::new(
+            T::from(-self.phi.sin()),
+            T::from(self.phi.cos()),
+            T::from(0.)
+        )
+    }
+    
+    pub fn get_up<T: From<f32>>(&self) -> Vector3<T>  {
+        Vector3::new(
+            T::from(-self.phi.cos() * self.theta.cos()),
+            T::from(-self.phi.sin() * self.theta.cos()),
+            T::from(self.theta.sin())
+        )
     }
 }

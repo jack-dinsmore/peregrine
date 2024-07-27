@@ -23,12 +23,13 @@ pub use io::key::Key;
 
 pub trait App {
     fn new(graphics: &Graphics) -> Self;
-    fn tick(&mut self, key_state: &KeyState);
+    fn tick(&mut self, graphics: &Graphics, key_state: &KeyState);
     fn render(&self, render_pass: RenderPass);
     fn exit_check(&self) -> bool;
     
     fn key_up(&mut self, _key: Key) {}
     fn key_down(&mut self, _key: Key) {}
+    fn mouse_motion(&mut self, _pos: (f64, f64)) {}
     fn close_requested(&mut self) {}
     fn resize(&mut self, _new_size: (u32, u32)) {}
 }
@@ -44,7 +45,7 @@ async fn main_internal<T: App>() {
     let mut key_state = KeyState::new();
 
     event_loop.run(move |event, control_flow| {
-        app.tick(&key_state);
+        app.tick(&graphics, &key_state);
         
         match event {
             Event::WindowEvent { ref event, window_id, } if window_id == graphics.window().id() => match event {
@@ -63,6 +64,9 @@ async fn main_internal<T: App>() {
                     },
                     None => (),
                 },
+                WindowEvent::CursorMoved { position, .. } => {
+                    app.mouse_motion((position.x, position.y));
+                }
                 WindowEvent::KeyboardInput {
                     event: KeyEvent {
                             state: ElementState::Released,
