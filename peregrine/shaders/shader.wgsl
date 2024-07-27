@@ -48,6 +48,10 @@ var t_diffuse: texture_2d<f32>;
 @group(2) @binding(1)
 var s_diffuse: sampler;
 @group(2) @binding(2)
+var t_normal: texture_2d<f32>;
+@group(2) @binding(3)
+var s_normal: sampler;
+@group(2) @binding(4)
 var<uniform> material: MaterialUniform;
 
 @fragment
@@ -55,7 +59,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Lighting
     let pos = in.world_position.xyz;
     let surface_to_light = normalize(camera.light_pos.xyz - pos);
-    let normal = in.normal;
+    let bump_normal = textureSample(t_normal, s_normal, in.tex_coords*2).rgb - vec3(0.5, 0.5, 0.5);
+    let normal = normalize(in.normal + bump_normal);
     let surface_to_light_dot_normal = dot(surface_to_light, normal);
     if surface_to_light_dot_normal < 0. {
         return vec4(0., 0., 0., 1.);

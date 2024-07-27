@@ -1,5 +1,8 @@
 use tethys::prelude::*;
 use cgmath::{Quaternion, Vector3};
+use clap::Parser;
+
+mod util;
 
 struct Peregrine {
     shader: Shader,
@@ -88,6 +91,17 @@ impl App for Peregrine {
     }
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short, long)]
+    normal: bool,
+}
+
 fn main() {
-    tethys::main::<Peregrine>();
+    let args = Args::parse();
+    if args.normal {
+        util::normal::save_bumpmap();
+    } else {
+        tethys::main::<Peregrine>();
+    }
 }

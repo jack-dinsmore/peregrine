@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.86"
 cgmath = "0.18.0"
+clap = { version = "4.5.11", features = ["derive"] }
+image = "0.25.2"
+rand = "0.8.5"
 tethys = { path = "../tethys" }

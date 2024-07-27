@@ -49,8 +49,9 @@ pub fn load_obj(input: TokenStream) -> TokenStream {
         let diffuse = &material.diffuse.unwrap_or([0., 0., 0.]);
         let specular = &material.specular.unwrap_or([0., 0., 0.]);
         let shininess = material.shininess.unwrap_or(0.);
-        let normal_texture = match material.normal_texture {
-            Some(path) => {
+        let normal_texture: Vec<u8> = match material.normal_texture {
+            Some(info) => {
+                let path = info.split(' ').nth(2).unwrap();
                 let path = base_path.join(path);
                 fs::read(&path).expect(&format!("Could not open texture {:?}", path))
             },
@@ -70,8 +71,8 @@ pub fn load_obj(input: TokenStream) -> TokenStream {
                 diffuse: [#(#diffuse),*],
                 specular: [#(#specular),*],
                 shininess: #shininess,
-                normal_texture: vec![#(#normal_texture),*],
-                diffuse_texture: vec![#(#diffuse_texture),*],
+                normal_texture: &[#(#normal_texture),*],
+                diffuse_texture: &[#(#diffuse_texture),*],
             }
         }
     });
