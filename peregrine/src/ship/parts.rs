@@ -24,45 +24,66 @@ pub enum Part {
     FuelCell,
 }
 impl Part {
+    pub(super) fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
+        let mut output = Vec::new();
+        match self {
+            Self::Tank { length } => {
+                output.push(PartLayout {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    orientation: 12
+                } + layout);
+
+                for i in 0..(*length as i32-2) {
+                    output.push(PartLayout {
+                        x: 0,
+                        y: 0,
+                        z: i+1,
+                        orientation: 0
+                    } + layout);
+                }
+
+                output.push(PartLayout {
+                    x: 0,
+                    y: 0,
+                    z: *length as i32 - 1,
+                    orientation: 0
+                } + layout);
+            },
+            Self::FuelCell => {
+                output.push(PartLayout {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    orientation: 0
+                } + layout);
+            }
+        }
+        output
+    }
+
     pub(super) fn get_objects(&self, part_loader: &mut PartLoader, layout: PartLayout, index: usize) -> Vec<ObjectInfo> {
         let mut output = Vec::new();
         match self {
             Self::Tank { length } => {
                 let cap = part_loader.get_part_model(PartModel::TankCap).clone();
                 let body = part_loader.get_part_model(PartModel::TankBody).clone();
-
-                output.push(ObjectInfo::new(part_loader.graphics, cap.clone(), PartLayout {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                    orientation: 12
-                } + layout, index));
-
-                for i in 0..(*length as i32-2) {
-                    output.push(ObjectInfo::new(part_loader.graphics, body.clone(), PartLayout {
-                        x: 0,
-                        y: 0,
-                        z: i+1,
-                        orientation: 0
-                    } + layout, index));
-                }
-
-                output.push(ObjectInfo::new(part_loader.graphics, cap.clone(), PartLayout {
-                    x: 0,
-                    y: 0,
-                    z: *length as i32 - 1,
-                    orientation: 0
-                } + layout, index));
+                output.append(&mut self.get_blocks(layout).into_iter().enumerate().map(|(i, b)| {
+                    if i == 0 {
+                        ObjectInfo::new(part_loader.graphics, cap.clone(), b, index)
+                    } else if i == *length as usize-1 {
+                        ObjectInfo::new(part_loader.graphics, body.clone(), b, index)
+                    } else {
+                        ObjectInfo::new(part_loader.graphics, cap.clone(), b, index)
+                    }
+                }).collect::<Vec<_>>());
             },
             Self::FuelCell => {
                 let model = part_loader.get_part_model(PartModel::FuelCell).clone();
-
-                output.push(ObjectInfo::new(part_loader.graphics, model, PartLayout {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                    orientation: 0
-                } + layout, index));
+                output.append(&mut self.get_blocks(layout).into_iter().map(|b| {
+                        ObjectInfo::new(part_loader.graphics, model.clone(), b, index)
+                }).collect::<Vec<_>>());
             }
         }
         output

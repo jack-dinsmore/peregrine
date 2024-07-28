@@ -60,12 +60,91 @@ impl Add for PartLayout {
     }
 }
 
+struct PartGrid {
+    data: Vec<isize>,
+    x: u32,
+    y: u32,
+    z: u32,
+    cx: i32,// Where is the origin in these grid coordinates
+    cy: i32,
+    cz: i32
+}
+impl PartGrid {
+    fn new() -> Self {
+        Self {
+            x: 0, y: 0, z: 0,
+            cx: 0, cy: 0, cz: 0,
+            data: Vec::new()
+        }
+    }
+
+    fn with_capacity(x: u32, y: u32, z: u32) -> Self {
+        Self {
+            x, y, z,
+            cx: 0, cy: 0, cz: 0,
+            data: Vec::with_capacity((x * y * z) as usize)
+        }
+    }
+
+    fn reshape(&mut self, x: u32, y: u32, z: u32, cx: i32, cy: i32, cz: i32) {
+        let mut new_data = Vec::with_capacity((x*y*z) as usize);
+        for (i, data) in self.data.iter().enumerate() {
+            if *data < 0 {continue;}
+            let xi = i as i32 % self.x as i32 - self.cx;
+            let yi = (i as i32 / self.x as i32) % self.y as i32 - self.cy;
+            let zi = i as i32 / (self.x * self.y) as i32 - self.cz;
+            let new_index = ((xi+cx) as u32 + (yi+cy) as u32 * x + (zi+cz) as u32 * x * y) as usize;
+            while new_data.len() <= new_index {
+                new_data.push(-1);
+            }
+            new_data[new_index] = *data;
+        }
+        self.x = x;
+        self.y = y;
+        self.z = z;
+        self.cx = cx;
+        self.cy = cy;
+        self.cz = cz;
+        self.data = new_data;
+    }
+
+    fn get_index(&self, x: i32, y: i32, z: i32) -> usize {
+        ((x+self.cx) as u32 + (y+self.cy) as u32 * self.x + (z+self.cz) as u32 * self.x * self.y) as usize
+    }
+
+    fn update(&mut self, layout: PartLayout, data: usize) {
+        let underflow_x = 0.min(layout.x + self.cx);
+        let underflow_y = 0.min(layout.y + self.cy);
+        let underflow_z = 0.min(layout.z + self.cz);
+        let overflow_x = (layout.x + 1).max(self.x as i32);
+        let overflow_y = (layout.y + 1).max(self.y as i32);
+        let overflow_z = (layout.z + 1).max(self.z as i32);
+        if underflow_x < 0 || underflow_y < 0 || underflow_z < 0 || overflow_x as u32 >= self.x || overflow_y as u32 >= self.y || overflow_z as u32 >= self.z {
+            self.reshape(
+                (overflow_x - underflow_x) as u32,
+                (overflow_y - underflow_y) as u32,
+                (overflow_z - underflow_z) as u32,
+                self.cx - underflow_x,
+                self.cy - underflow_y,
+                self.cz - underflow_z,
+            );
+        }
+        let index = self.get_index(layout.x, layout.y, layout.z);
+        while self.data.len() <= index {
+            self.data.push(-1);
+        }
+        dbg!(index);
+        self.data[index] = data as isize;
+    }
+}
+
 
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
 pub struct Ship {
     parts: Vec<Part>,
     layout: Vec<PartLayout>,
+    grid: PartGrid, // Grid of cells that point to the part index of the part that's there
     objects: Vec<ObjectInfo>,
     rigid_body: RigidBody,
 }
@@ -73,13 +152,18 @@ pub struct Ship {
 impl Ship {
     pub fn new(part_loader: &mut PartLoader, parts: Vec<Part>, layout: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
         let mut objects = Vec::new();
+        let mut grid = PartGrid::new();
         for (i, (part, layout)) in parts.iter().zip(&layout).enumerate() {
             objects.append(&mut part.get_objects(part_loader, *layout, i));
+            for block in part.get_blocks(*layout) {
+                grid.update(block, i);
+            }
         }
         Self {
             parts,
             layout,
             objects,
+            grid,
             rigid_body
         }
     }
