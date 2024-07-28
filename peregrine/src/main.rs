@@ -5,7 +5,7 @@ use clap::Parser;
 mod dev;
 mod ship;
 
-use ship::{PartArray, PartLoader, Ship};
+use ship::{Part, PartLayout, PartLoader, Ship};
 
 struct Peregrine {
     shader: Shader,
@@ -25,7 +25,9 @@ impl App for Peregrine {
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let mut part_loader = PartLoader::new(graphics);
         let rigid_body = RigidBody::new(Vector3::new(0., 0., 0.), Vector3::new(0., 0.1, 0.), Quaternion::new(1., 0., 0., 0.), Vector3::new(0., 0., 0.), 1., (1., 1., 1.));
-        let ship = Ship::new(&mut part_loader, PartArray::new(), rigid_body);
+        let parts = vec![Part::Tank {length: 3}, Part::FuelCell];
+        let layout = vec![PartLayout { x: 0, y: 0, z: 0, orientation: 0 }, PartLayout { x: 1, y: 0, z: 0, orientation: 0 }, ];
+        let ship = Ship::new(&mut part_loader, parts, layout, rigid_body);
         let size = graphics.get_size();
         Self {
             exit: false,
