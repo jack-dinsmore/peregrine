@@ -3,6 +3,7 @@ pub mod shader;
 pub mod primitives;
 pub mod object;
 pub mod camera;
+mod model_loading;
 
 use std::sync::Arc;
 

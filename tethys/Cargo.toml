@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tethys-proc = { path = "../tethys-proc" }
+# tethys-proc = { path = "../tethys-proc" }
 winit = { version = "0.29", features = ["rwh_05"] }
 env_logger = "0.11.3"
 log = "0.4"
@@ -14,3 +14,6 @@ image = { version = "0.24", features = [ "png", "jpeg" ] }
 pollster = "0.3.0"
 cgmath = "0.18.0"
 anyhow = "1.0.86"
+serde = { version = "1.0.208", features = ["derive"] }
+bincode = "1.3.3"
+tobj = "4.0.2"

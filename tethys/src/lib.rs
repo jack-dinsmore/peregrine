@@ -1,4 +1,3 @@
-pub extern crate tethys_proc;
 pub mod graphics;
 pub mod physics;
 pub mod io;
@@ -13,7 +12,7 @@ pub mod prelude {
     pub use crate::graphics::object::Object;
     pub use crate::graphics::primitives::{Vertex, TexVertex};
     pub use crate::physics::RigidBody;
-    pub use tethys_proc::load_obj;
+    pub use crate::include_obj;
 }
 
 use std::time::Instant;

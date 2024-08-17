@@ -108,7 +108,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     if args.normal {
-        dev::normal::save_bumpmap();
+        dev::normal::fourier_save_bumpmap();
     } else {
         tethys::main::<Peregrine>();
     }

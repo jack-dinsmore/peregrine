@@ -16,3 +16,10 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Optimizations
 * Modify the loading macro to only load each material once
+
+## Instructions for exporting from blender
+* Use Wavefront (experimental) format
+* Use x forward, z up
+* You probably want selected only
+* Select UV coordinates, normals, materials, and triangulated mesh
+* Select Material Groups

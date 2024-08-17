@@ -113,9 +113,9 @@ impl<'a> PartLoader<'a> {
     pub(super) fn get_part_model(&mut self, part: PartModel) -> Model {
         if let None = self.parts[part as usize] {
             let loaded_obj = match part {
-                PartModel::TankCap => load_obj!("assets/parts/tank-cap.obj"),
-                PartModel::TankBody => load_obj!("assets/parts/tank-body.obj"),
-                PartModel::FuelCell => load_obj!("assets/parts/fuel-cell.obj"),
+                PartModel::TankCap => include_obj!("tank-cap"),
+                PartModel::TankBody => include_obj!("tank-body"),
+                PartModel::FuelCell => include_obj!("fuel-cell"),
             };
             self.parts[part as usize] = Some(Model::new(self.graphics, loaded_obj));
         }

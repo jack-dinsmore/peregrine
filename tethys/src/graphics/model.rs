@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use anyhow::Result;
-
 use wgpu::util::DeviceExt;
-use crate::graphics::{shader::ShaderBinding, primitives::TexVertex};
 
+use crate::graphics::{shader::ShaderBinding, primitives::TexVertex};
 use super::Graphics;
+
+pub use super::model_loading::{LoadMaterial, LoadMesh, LoadedObj};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -19,11 +20,6 @@ impl MateriallUniform {
     }
 }
 
-pub struct LoadedObj {
-    pub meshes: Vec<LoadMesh>,
-    pub materials: Vec<LoadMaterial>,
-}
-
 pub(crate) struct Mesh {
     pub(crate) vertex_buffer: wgpu::Buffer,
     pub(crate) index_buffer: wgpu::Buffer,
@@ -33,23 +29,6 @@ pub(crate) struct Mesh {
 
 pub(crate) struct Material {
     pub bind_group: wgpu::BindGroup,
-}
-
-pub struct LoadMesh {
-    pub positions: Vec<f32>,
-    pub normals: Vec<f32>,
-    pub texcoords: Vec<f32>,
-    pub indices: Vec<u32>,
-    pub material_id: usize,
-}
-
-pub struct LoadMaterial {
-    pub name: String,
-    pub diffuse: [f32; 3],
-    pub specular: [f32; 3],
-    pub shininess: f32,
-    pub normal_texture: &'static [u8],
-    pub diffuse_texture: &'static [u8],
 }
 
 #[derive(Clone)]

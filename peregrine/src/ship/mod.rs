@@ -133,7 +133,6 @@ impl PartGrid {
         while self.data.len() <= index {
             self.data.push(-1);
         }
-        dbg!(index);
         self.data[index] = data as isize;
     }
 }
