@@ -64,9 +64,19 @@ impl PlacementState {
         self.display = true;
         let mut iterations = 0;
         self.interior.rigid_body.pos = vector_cast(vector_cast(camera.position) + look * self.desire_distance);
-        while let Some(depth) = ShipInterior::check_intersection(closest_ship, &self.interior) {
+        loop {
+            let result = ShipInterior::check_intersection(closest_ship, &self.interior);
+            if !result.collision() { break; }
+
+            let mut biggest_depth = Vector3::new(0., 0., 0.);
+            for depth in &result.depths {
+                if depth.magnitude2() > biggest_depth.magnitude2() {
+                    biggest_depth = *depth;
+                }
+            }
+
             // Move the object closer
-            let projection = look / vector_cast(depth).dot(look);
+            let projection = look / vector_cast(biggest_depth).dot(look);
             self.distance -= projection.magnitude();
             self.interior.rigid_body.pos = vector_cast(vector_cast(camera.position) + look * self.desire_distance);
 

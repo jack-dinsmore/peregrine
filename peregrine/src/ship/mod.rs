@@ -2,7 +2,7 @@ use std::ops::Add;
 
 use cgmath::{Deg, Quaternion, Rotation, Rotation3, Vector3};
 use parts::{compose_orientations, ObjectInfo};
-use tethys::{physics::collisions::CollisionBox, prelude::*};
+use tethys::{physics::collisions::{CollisionBox, CollisionReport}, prelude::*};
 
 mod parts;
 pub use parts::{Part, PartLoader};
@@ -191,7 +191,7 @@ impl ShipInterior {
         self.objects.iter().map(|o| &o.object).collect::<Vec<_>>()
     }
     
-    pub(crate) fn check_intersection(a: &ShipInterior, b: &ShipInterior) -> Option<Vector3<f64>> {
+    pub(crate) fn check_intersection(a: &ShipInterior, b: &ShipInterior) -> CollisionReport {
         Collider::check_intersection((&a.collider, &a.rigid_body).into(), (&b.collider, &b.rigid_body).into())
     }
 }
