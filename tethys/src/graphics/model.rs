@@ -95,7 +95,7 @@ impl Mesh {
                 (mesh.texcoords[0] - mesh.texcoords[2]).powi(2)
                 + (mesh.texcoords[1] - mesh.texcoords[3]).powi(2)
             ).sqrt();
-            l_phys / l_tex            
+            l_phys / l_tex
         };
 
         for i in 0..n_triangles {

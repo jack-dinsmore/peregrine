@@ -1,4 +1,7 @@
-use cgmath::{InnerSpace, Quaternion, Vector3};
+use cgmath::{InnerSpace, Quaternion, Vector3, Zero};
+
+pub mod collisions;
+
 
 #[derive(Debug)]
 pub struct RigidBody {
@@ -40,5 +43,18 @@ impl RigidBody {
 
         self.force = Vector3::new(0., 0., 0.);
         self.torque = Quaternion::new(0., 0., 0., 0.);
+    }
+}
+
+impl Default for RigidBody {
+    fn default() -> Self {
+        Self::new(
+            Vector3::zero(),
+            Vector3::zero(),
+            Quaternion::new(1., 0., 0., 0.),
+            Vector3::zero(),
+            1.,
+            (1., 1., 1.)
+        )
     }
 }

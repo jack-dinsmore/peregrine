@@ -1,6 +1,7 @@
 pub mod graphics;
 pub mod physics;
 pub mod io;
+pub mod util;
 
 pub mod prelude {
     pub use crate::App;
@@ -12,6 +13,7 @@ pub mod prelude {
     pub use crate::graphics::object::Object;
     pub use crate::graphics::primitives::{Vertex, TexVertex};
     pub use crate::physics::RigidBody;
+    pub use crate::physics::collisions::Collider;
     pub use crate::include_obj;
 }
 

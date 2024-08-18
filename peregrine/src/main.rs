@@ -4,15 +4,20 @@ use clap::Parser;
 
 mod dev;
 mod ship;
+mod ui;
+mod util;
 
-use ship::{Part, PartLayout, PartLoader, Ship};
+use ship::{Part, PartLayout, PartLoader, ShipInterior};
+use ui::{PlacementState, UiMode};
+
 
 struct Peregrine {
     shader: Shader,
     camera: Camera,
-    ship: Ship,
+    ship: ShipInterior,
     exit: bool,
-    size: (u32, u32)
+    size: (u32, u32),
+    ui_mode: UiMode,
 }
 
 impl App for Peregrine {
@@ -27,19 +32,35 @@ impl App for Peregrine {
         let rigid_body = RigidBody::new(Vector3::new(0., 0., 0.), Vector3::new(0., 0.1, 0.), Quaternion::new(1., 0., 0., 0.), Vector3::new(0., 0., 0.), 1., (1., 1., 1.));
         let parts = vec![Part::Tank {length: 3}, Part::FuelCell];
         let layout = vec![PartLayout { x: 0, y: 0, z: 0, orientation: 0 }, PartLayout { x: 1, y: 0, z: 0, orientation: 0 }, ];
-        let ship = Ship::new(&mut part_loader, parts, layout, rigid_body);
+        let ship = ShipInterior::new(&mut part_loader, parts, layout, rigid_body);
         let size = graphics.get_size();
+
+
         Self {
             exit: false,
             shader,
             ship,
             camera,
             size,
+            ui_mode: UiMode::Placement(PlacementState::new(graphics, Part::Tank { length: 3 }))
         }
     }
 
     fn tick(&mut self, graphics: &Graphics, key_state: &KeyState, delta_t: f64) {
         self.ship.update(delta_t);
+
+        match &mut self.ui_mode {
+            UiMode::Placement(placement) => {
+                if key_state.is_down(Key::Up) {
+                    placement.desire_distance += 1. * delta_t as f32;
+                }
+                if key_state.is_down(Key::Down) {
+                    placement.desire_distance -= 1. * delta_t as f32;
+                }
+
+                placement.update(&self.camera, &self.ship);
+            }
+        };
 
         graphics.set_mouse_pos((self.size.0/2, self.size.1/2));
         if key_state.is_down(Key::Char('w')) {
@@ -91,11 +112,16 @@ impl App for Peregrine {
     }
     
     fn render(&self, render_pass: RenderPass) {
-        render_pass
+        let render_pass = render_pass
             .set_camera(&self.camera)
             .set_shader(&self.shader)
             .render(&self.ship.objects())
         ;
+        match &self.ui_mode {
+            UiMode::Placement(placement) => {
+                render_pass.render(&placement.object());
+            },
+        }
     }
 }
 

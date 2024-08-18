@@ -14,6 +14,36 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
+### Part placement
+* Write collision detection between trees
+* Write collision detection between boxes
+* Allow placement of parts
+
+### Ship aesthetics
+* Ship exteriors
+* Panels
+* Thrusters
+
+### Wiring
+* Internal linking
+* Controls
+
+### Planets
+* Terrain rendering
+* Terrain level of detail
+* Sky box
+
+### Physics
+* Gravity
+* Collisions
+
+### Space stations
+* Make one
+* Docking and undocking
+* UI for ship design at a hangar bay
+
+That concludes a release.
+
 ## Optimizations
 * Modify the loading macro to only load each material once
 

@@ -110,7 +110,7 @@ impl<'a> PartLoader<'a> {
         }
     }
 
-    pub(super) fn get_part_model(&mut self, part: PartModel) -> Model {
+    pub fn get_part_model(&mut self, part: PartModel) -> Model {
         if let None = self.parts[part as usize] {
             let loaded_obj = match part {
                 PartModel::TankCap => include_obj!("tank-cap"),

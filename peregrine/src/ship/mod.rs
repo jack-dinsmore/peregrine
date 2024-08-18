@@ -2,11 +2,12 @@ use std::ops::Add;
 
 use cgmath::{Deg, Quaternion, Rotation, Rotation3, Vector3};
 use parts::{compose_orientations, ObjectInfo};
-use tethys::prelude::*;
+use tethys::{physics::collisions::CollisionBox, prelude::*};
 
 mod parts;
 pub use parts::{Part, PartLoader};
 
+/// The physical position of a part
 #[derive(Clone, Copy)]
 pub struct PartLayout {
     pub x: i32,
@@ -140,30 +141,34 @@ impl PartGrid {
 
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
-pub struct Ship {
+pub struct ShipInterior {
     parts: Vec<Part>,
-    layout: Vec<PartLayout>,
+    layouts: Vec<PartLayout>,
     grid: PartGrid, // Grid of cells that point to the part index of the part that's there
+    collider: Collider,
     objects: Vec<ObjectInfo>,
-    rigid_body: RigidBody,
+    pub rigid_body: RigidBody,
 }
 
-impl Ship {
-    pub fn new(part_loader: &mut PartLoader, parts: Vec<Part>, layout: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
-        let mut objects = Vec::new();
+impl ShipInterior {
+    pub fn new(part_loader: &mut PartLoader, parts: Vec<Part>, layouts: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
+        let mut objects = Vec::with_capacity(parts.len());
         let mut grid = PartGrid::new();
-        for (i, (part, layout)) in parts.iter().zip(&layout).enumerate() {
+        let mut boxes = Vec::with_capacity(parts.len());
+        for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
             objects.append(&mut part.get_objects(part_loader, *layout, i));
+            boxes.push(CollisionBox::new());
             for block in part.get_blocks(*layout) {
                 grid.update(block, i);
             }
         }
         Self {
             parts,
-            layout,
+            layouts,
             objects,
             grid,
-            rigid_body
+            rigid_body,
+            collider: Collider::make_tree(boxes),
         }
     }
 
@@ -174,7 +179,7 @@ impl Ship {
     }
 
     /// Update all the objects within the ship according to the physics component
-    fn update_graphics(&mut self) {
+    pub fn update_graphics(&mut self) {
         for object in &mut self.objects {
             let (position, orientation) = object.layout.as_physical();
             object.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
@@ -184,5 +189,9 @@ impl Ship {
     
     pub fn objects(&self) -> Vec<&Object> {
         self.objects.iter().map(|o| &o.object).collect::<Vec<_>>()
+    }
+    
+    pub(crate) fn check_intersection(a: &ShipInterior, b: &ShipInterior) -> Option<Vector3<f64>> {
+        Collider::check_intersection((&a.collider, &a.rigid_body).into(), (&b.collider, &b.rigid_body).into())
     }
 }

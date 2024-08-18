@@ -15,5 +15,6 @@ clap = { version = "4.5.11", features = ["derive"] }
 image = "0.25.2"
 ndarray = "0.15"
 ndarray-interp = "0.4.1"
+num-traits = "0.2.19"
 rand = "0.8.5"
 tethys = { path = "../tethys" }
