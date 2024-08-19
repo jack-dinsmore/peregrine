@@ -40,7 +40,6 @@ pub trait App {
 }
 
 async fn main_internal<T: App>() {
-    env_logger::init();
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     

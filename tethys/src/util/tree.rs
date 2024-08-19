@@ -1,13 +1,20 @@
-use std::ops::{Deref, DerefMut};
+use std::{cell::RefCell, ops::Deref, rc::Rc};
+
+use super::unreachr;
 
 pub struct BinaryTree<T> {
     data: Vec<BinaryTreeNode<T>>,
 }
 
 impl<T> BinaryTree<T> {
-    pub fn new() -> Self {
+    pub fn new(root_item: T) -> Self {
         Self {
-            data: Vec::new(),
+            data: vec![BinaryTreeNode {
+                item: root_item,
+                parent: None,
+                left: None,
+                right: None
+            }],
         }
     }
 
@@ -18,11 +25,13 @@ impl<T> BinaryTree<T> {
         }
     }
 
-    pub fn root_mut<'a>(&'a mut self) -> BinaryTreeNodeHandleMut<'a, T> {
-        BinaryTreeNodeHandleMut {
-            tree: self,
+    pub fn root_mut<'a>(self, action: impl Fn(BinaryTreeNodeHandleMut<T>)) -> Self {
+        let tree = Rc::new(RefCell::new(self));
+        action(BinaryTreeNodeHandleMut {
+            tree: tree.clone(),
             index: 0,
-        }
+        });
+        RefCell::into_inner(unreachr(Rc::try_unwrap(tree)))
     }
 }
 
@@ -39,9 +48,15 @@ pub struct BinaryTreeNodeHandle<'a, T> {
     index: usize,
 }
 
-pub struct BinaryTreeNodeHandleMut<'a, T> {
-    tree: &'a mut BinaryTree<T>,
+pub struct BinaryTreeNodeHandleMut<T> {
+    tree: Rc<RefCell<BinaryTree<T>>>,
     index: usize,
+}
+
+impl<T> Clone for BinaryTreeNodeHandleMut<T> {
+    fn clone(&self) -> Self {
+        Self { tree: self.tree.clone(), index: self.index }
+    }
 }
 
 impl<'a, T> BinaryTreeNodeHandle<'a, T> {
@@ -65,65 +80,58 @@ impl<'a, T> BinaryTreeNodeHandle<'a, T> {
     }
 }
 
-impl<'a, T> BinaryTreeNodeHandleMut<'a, T> {
-    pub fn parent(self) -> Option<Self> {
-        match self.tree.data[self.index].parent {
+impl<T> BinaryTreeNodeHandleMut<T> {
+    pub fn parent(&self) -> Option<Self> {
+        match self.tree.borrow().data[self.index].parent {
             Some(index) => {
-                Some(Self {tree: self.tree, index})
+                Some(Self {tree: self.tree.clone(), index})
             },
             None => None,
         }
     }
-    pub fn left(self) -> Option<Self> {
-        match self.tree.data[self.index].left {
-            Some(index) => Some(Self {tree: self.tree, index}),
+    pub fn left(&self) -> Option<Self> {
+        match self.tree.borrow().data[self.index].left {
+            Some(index) => Some(Self {tree: self.tree.clone(), index}),
             None => None,
         }
     }
-    pub fn right(self) -> Option<Self> {
-        match self.tree.data[self.index].right {
-            Some(index) => Some(Self {tree: self.tree, index}),
+    pub fn right(&self) -> Option<Self> {
+        match self.tree.borrow().data[self.index].right {
+            Some(index) => Some(Self {tree: self.tree.clone(), index}),
             None => None,
         }
     }
-    pub fn insert_left(self, item: T) {
-        let data_pointer = &mut self.tree.data as *mut Vec<BinaryTreeNode<T>>;
-        let index = self.index;
+    pub fn insert_left(&self, item: T) {
         if let Some(h) = self.left() {
             h.delete();
         }
-        let data = unsafe {&mut *data_pointer};
-        let new_index = data.len();
-        data.push(BinaryTreeNode{
+        let new_index = self.tree.borrow().data.len();
+        self.tree.borrow_mut().data.push(BinaryTreeNode{
             item,
-            parent: Some(index),
+            parent: Some(self.index),
             left: None,
             right: None,
         });
-        data[index].left = Some(new_index);
+        self.tree.borrow_mut().data[self.index].left = Some(new_index);
     }
-    pub fn insert_right(self, item: T) {
-        let data_pointer = &mut self.tree.data as *mut Vec<BinaryTreeNode<T>>;
-        let index = self.index;
+    pub fn insert_right(&self, item: T) {
         if let Some(h) = self.right() {
             h.delete();
         }
-        let data = unsafe {&mut *data_pointer};
-        let new_index = data.len();
-        data.push(BinaryTreeNode{
+        let new_index = self.tree.borrow().data.len();
+        self.tree.borrow_mut().data.push(BinaryTreeNode{
             item,
-            parent: Some(index),
+            parent: Some(self.index),
             left: None,
             right: None,
         });
-        data[index].right = Some(new_index);
+        self.tree.borrow_mut().data[self.index].right = Some(new_index);
     }
     pub fn delete(self) {
-        let mut decrement_count = vec![0; self.tree.data.len()];
-        let mut delete_indices = vec![false; self.tree.data.len()];
-        let tree = self.tree as *mut BinaryTree<T>;
+        let mut decrement_count = vec![0; self.tree.borrow().data.len()];
+        let mut delete_indices = vec![false; decrement_count.len()];
         {
-            let mut process_queue = vec![self];
+            let mut process_queue = vec![self.clone()];
             while let Some(item) = process_queue.pop() {
                 delete_indices[item.index] = true;
                 for i in item.index..decrement_count.len() {
@@ -140,8 +148,7 @@ impl<'a, T> BinaryTreeNodeHandleMut<'a, T> {
         }
 
         // Update the indices to be correct
-        let tree = unsafe { &mut *tree };
-        for item in &mut tree.data {
+        for item in self.tree.borrow_mut().data.iter_mut() {
             if let Some(i) = &mut item.parent {
                 *i -= decrement_count[*i];
             }
@@ -155,7 +162,7 @@ impl<'a, T> BinaryTreeNodeHandleMut<'a, T> {
         
         // Remove everything
         let mut i = 0;
-        tree.data.retain(|_| {
+        self.tree.borrow_mut().data.retain(|_| {
             i += 1;
             !delete_indices[i-1]
         });
@@ -167,19 +174,5 @@ impl<'a, T> Deref for BinaryTreeNodeHandle<'a, T> {
 
     fn deref(&self) -> &Self::Target {
         &self.tree.data[self.index].item
-    }
-}
-
-impl<'a, T> Deref for BinaryTreeNodeHandleMut<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.tree.data[self.index].item
-    }
-}
-
-impl<'a, T> DerefMut for BinaryTreeNodeHandleMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tree.data[self.index].item
     }
 }

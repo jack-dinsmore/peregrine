@@ -1,9 +1,12 @@
 use std::{ops::AddAssign, vec::IntoIter};
 
 use cgmath::{InnerSpace, Rotation, Vector3};
+use log::warn;
 
-use crate::util::BinaryTree;
+use crate::util::{unreacho, BinaryTree};
 use super::RigidBody;
+
+const EPSILON: f64 = 1e-5;
 
 #[derive(Clone, Copy)]
 pub struct ColliderPackage<'a> {
@@ -27,6 +30,7 @@ impl<'a> From<(&'a RigidBody, &'a Collider)> for ColliderPackage<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CollisionReport {
     pub depths: Vec<Vector3<f64>>,
     pub positions: Vec<Vector3<f64>>,
@@ -47,8 +51,8 @@ impl CollisionReport {
     }
     fn reorient(&self, from: &RigidBody) -> Self {
         Self {
-            depths: self.depths.iter().map(|v| orient_global(*v, from)).collect(),
-            positions: self.positions.iter().map(|v| orient_global(*v, from)).collect(),
+            depths: self.depths.iter().map(|v| reorient_rot_global(*v, from)).collect(),
+            positions: self.positions.iter().map(|v| reorient_global(*v, from)).collect(),
         }
     }
     
@@ -58,6 +62,10 @@ impl CollisionReport {
 
     fn deepest_mag2(&self) -> f64 {
         self.positions.iter().fold(0., |accum, v| v.magnitude2().max(accum))
+    }
+
+    pub fn len(&self) -> usize {
+        self.positions.len()
     }
 }
 
@@ -78,6 +86,7 @@ impl PartialOrd for CollisionReport {
     }
 }
 
+#[derive(Clone)]
 pub struct CollisionBox {
     /// Position of the box
     corner: Vector3<f64>,
@@ -109,6 +118,7 @@ impl CollisionBox {
             } else if min_dist == self.dimensions.z - p.z {
                 Vector3::new(0., 0., min_dist)
             } else {
+                dbg!(min_dist, p.x, p.y, p.z, self.dimensions.x-p.x, self.dimensions.y-p.y, self.dimensions.z-p.z);
                 unreachable!()
             };
             CollisionReport::new(depth, p + depth/2.)
@@ -128,13 +138,13 @@ impl CollisionBox {
             let a = vy / vx;
             let b = py - px * a;
             let p1 = (0., b);
-            let p2 = (1., a + b);
+            let p2 = (dx, a * dx + b);
             let p3 = (-b/a, 0.);
-            let p4 = ((1.-b)/a, 0.);
-            let inside1 = 0. < p1.1 && p1.1 < dy;
-            let inside2 = 0. < p2.1 && p2.1 < dy;
-            let inside3 = 0. < p3.0 && p3.0 < dx;
-            let inside4 = 0. < p4.0 && p4.0 < dx;
+            let p4 = ((dy-b)/a, dy);
+            let inside1 = -EPSILON <= p1.1 && p1.1 <= dy+EPSILON;
+            let inside2 = -EPSILON <= p2.1 && p2.1 <= dy+EPSILON;
+            let inside3 = -EPSILON <= p3.0 && p3.0 <= dx+EPSILON;
+            let inside4 = -EPSILON <= p4.0 && p4.0 <= dx+EPSILON;
             if !inside1 && !inside2 && !inside3 && !inside4 {
                 // No collision
                 return CollisionReport::none();
@@ -143,42 +153,46 @@ impl CollisionBox {
             // There was a collision. Get the opposing corner
             let near_corner = if inside1 && inside2 {
                 if p1.1 > p2.1 {
-                    if p1.1 + p2.1 > 1. {
-                        (1., 1.)
+                    if p1.1 + p2.1 > dy {
+                        (dx, dy)
                     } else {
                         (0., 0.)
                     }
                 } else {
-                    if p1.1 + p2.1 > 1. {
-                        (1., 0.)
+                    if p1.1 + p2.1 > dy {
+                        (dx, 0.)
                     } else {
-                        (1., 0.)
+                        (0., dy)
                     }
                 }
             } else if inside1 && inside3 {
                 (0., 0.)
             } else if inside1 && inside4 {
-                (0., 1.)
+                (0., dy)
             } else if inside2 && inside3 {
-                (1., 0.)
+                (dx, 0.)
             } else if inside2 && inside4 {
-                (1., 1.)
+                (dx, dy)
             } else if inside3 && inside4 {
                 if p3.0 > p4.0 {
-                    if p3.0 + p4.0 > 1. {
-                        (1., 1.)
+                    if p3.0 + p4.0 > dx {
+                        (dx, dy)
                     } else {
                         (0., 0.)
                     }
                 } else {
-                    if p3.0 + p4.0 > 1. {
-                        (1., 0.)
+                    if p3.0 + p4.0 > dx {
+                        (dx, 0.)
                     } else {
-                        (0., 1.)
+                        (0., dy)
                     }
                 }
             } else {
-                unreachable!()
+                warn!("Invalid collision");
+                warn!("{}, {}", dx, dy);
+                warn!("{:?}, {:?}, {:?}, {:?}", p1, p2, p3, p4);
+                warn!("{}, {}, {}, {}", inside1, inside2, inside3, inside4);
+                return CollisionReport::none();
             };
 
             let alpha = (vx * (near_corner.0 - px) + vy * (near_corner.1 - py)) / (vx*vx + vy*vy);
@@ -216,21 +230,21 @@ impl CollisionBox {
         for (p, v) in self.get_lines() {
             let report = o.check_line(
                 reorient(p, rigid_body, o_rigid_body),
-                reorient(v, rigid_body, o_rigid_body)
+                reorient_rot(v, rigid_body, o_rigid_body)
             );
             if report > deepest_report {
                 deepest_report = report.reorient(o_rigid_body);
             }
         }
-        for (p, v) in o.get_lines() {
-            let report = self.check_line(
-                reorient(p, o_rigid_body, rigid_body),
-                reorient(v, o_rigid_body, rigid_body)
-            );
-            if report > deepest_report {
-                deepest_report = report.reorient(rigid_body);
-            }
-        }
+        // for (p, v) in o.get_lines() {
+        //     let report = self.check_line(
+        //         reorient(p, o_rigid_body, rigid_body),
+        //         reorient(v, o_rigid_body, rigid_body)
+        //     );
+        //     if report > deepest_report {
+        //         deepest_report = report.reorient(rigid_body);
+        //     }
+        // }
 
         deepest_report
     }
@@ -301,6 +315,93 @@ impl CollisionBox {
             ),
         ].into_iter()
     }
+    
+    // Returns the smallest box containing all these (assumed to be co-aligned) boxes. Also returns a bool which is true if the returned box is completely full, which assumes that the composing boxes are not intersecting.
+    fn superbox(boxes: &[&CollisionBox]) -> (CollisionBox, bool) {
+        if boxes.len() == 0 {panic!("Cannot compute the superbox of just no objects")};
+        let mut superbox = boxes[0].clone();
+        let mut volume = 0.;
+        for x in boxes {
+            volume += x.volume();
+            let delta_x = superbox.corner.x - x.corner.x;
+            let delta_y = superbox.corner.y - x.corner.y;
+            let delta_z = superbox.corner.z - x.corner.z;
+            if delta_x > 0. {
+                superbox.corner.x -= delta_x;
+                superbox.dimensions.x += delta_x;
+            }
+            if delta_y > 0. {
+                superbox.corner.y -= delta_y;
+                superbox.dimensions.y += delta_y;
+            }
+            if delta_z > 0. {
+                superbox.corner.z -= delta_z;
+                superbox.dimensions.z += delta_z;
+            }
+            let delta_x = x.corner.x + x.dimensions.x - superbox.corner.x - superbox.dimensions.x;
+            let delta_y = x.corner.y + x.dimensions.y - superbox.corner.y - superbox.dimensions.y;
+            let delta_z = x.corner.z + x.dimensions.z - superbox.corner.z - superbox.dimensions.z;
+            if delta_x > 0. {
+                superbox.dimensions.x += delta_x;
+            }
+            if delta_y > 0. {
+                superbox.dimensions.y += delta_y;
+            }
+            if delta_z > 0. {
+                superbox.dimensions.z += delta_z;
+            }
+        }
+        let is_full = (superbox.volume() - volume).abs() < 1e-5;
+        (superbox, is_full)
+    }
+    
+    fn subdivide<'a>(boxes: &[&'a CollisionBox]) -> (Vec<&'a CollisionBox>, Vec<&'a CollisionBox>) {
+        if boxes.len() < 2 {
+            panic!("Cannot subdivide fewer than two boxes");
+        }
+        if boxes.len() == 2 {
+            return (vec![boxes[0]], vec![boxes[1]]);
+        }
+        let mut mean = Vector3::new(0., 0., 0.);
+        let mut mean2 = Vector3::new(0., 0., 0.);
+        for x in boxes {
+            let center = x.corner + x.dimensions/2.;
+            mean += center;
+            mean2 += Vector3::new(center.x.powi(2), center.y.powi(2), center.z.powi(2));
+        }
+        mean /= boxes.len() as f64;
+        mean2 /= boxes.len() as f64;
+        let std = mean2 - Vector3::new(mean.x.powi(2), mean.y.powi(2), mean.z.powi(2));
+        let dimension = if std.x > std.y && std.x > std.z {
+            0
+        } else if std.y > std.x && std.y > std.z {
+            1
+        } else {
+            2
+        };
+
+        let mut left = Vec::new();
+        let mut right = Vec::new();
+        for x in boxes {
+            let center = x.corner + x.dimensions/2.;
+            let use_left = match dimension {
+                0 => center.x > mean.x,
+                1 => center.y > mean.y,
+                2 => center.z > mean.z,
+                _ => unreachable!()
+            };
+            if use_left {
+                left.push(*x);
+            } else {
+                right.push(*x);
+            }
+        }
+        (left, right)
+    }
+    
+    pub fn volume(&self) -> f64 {
+        self.dimensions.x * self.dimensions.y * self.dimensions.z
+    }
 }
 
 pub enum Collider {
@@ -324,12 +425,12 @@ impl Collider {
             },
             (Collider::BoxTree(t), Collider::Line { p, v }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
-                let v = reorient(*v, b.rigid_body, a.rigid_body);
+                let v = reorient_rot(*v, b.rigid_body, a.rigid_body);
                 check_tree(t, |x| x.check_line(p, v))
             },
             (Collider::Line { p, v }, Collider::BoxTree(t)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
-                let v = reorient(*v, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
                 check_tree(t, |x| x.check_line(p, v))
             },
             (Collider::BoxTree(t), Collider::Box(x)) => {
@@ -352,12 +453,12 @@ impl Collider {
             (Collider::Line { .. }, Collider::Line { .. }) => CollisionReport::none(),
             (Collider::Line { p, v }, Collider::Box(x)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
-                let v = reorient(*v, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
                 x.check_line(p, v)
             }
             (Collider::Box(x), Collider::Line { p, v }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
-                let v = reorient(*v, b.rigid_body, a.rigid_body);
+                let v = reorient_rot(*v, b.rigid_body, a.rigid_body);
                 x.check_line(p, v)
             },
             (Collider::Box(x1), Collider::Box(x2)) => {
@@ -372,19 +473,37 @@ impl Collider {
 
     /// Create a collider tree from a list of collider boxes
     pub fn make_tree(boxes: Vec<CollisionBox>) -> Self {
-        let mut tree = BinaryTree::new();
+        let box_pointer = boxes.iter().collect::<Vec<_>>();
+        let (superbox, is_full) = CollisionBox::superbox(&box_pointer);
+        let tree = BinaryTree::new(superbox);
+        if is_full {return Self::BoxTree(tree);}
 
-        unimplemented!();
+        
+        let tree = tree.root_mut(move |root| {
+            let box_pointer = boxes.iter().collect::<Vec<_>>();
+            let mut node_queue = vec![(
+                root,
+                box_pointer,
+            )];
 
-        merge_tree(&mut tree);
+            // Sort the boxes into groups
+            while let Some((node, boxes)) = node_queue.pop() {
+                let (left_array, right_array) = CollisionBox::subdivide(&boxes);
+                let (left_box, left_full) = CollisionBox::superbox(&left_array);
+                let (right_box, right_full) = CollisionBox::superbox(&right_array);
+                node.insert_left(left_box);
+                node.insert_right(right_box);
+                if !left_full {
+                    node_queue.push((unreacho(node.left()), left_array));
+                }
+                if !right_full {
+                    node_queue.push((unreacho(node.right()), right_array));
+                }
+            }
+        });
 
         Self::BoxTree(tree)
     }
-}
-
-/// Merge all boxes in a tree which represent an entire box
-fn merge_tree(t: &mut BinaryTree<CollisionBox>) {
-    unimplemented!()
 }
 
 fn check_tree(t: &BinaryTree<CollisionBox>, check_function: impl Fn(&CollisionBox)->CollisionReport) -> CollisionReport {
@@ -408,7 +527,17 @@ fn reorient(v: Vector3<f64>, from: &RigidBody, to: &RigidBody) -> Vector3<f64> {
     )
 }
 
-fn orient_global(v: Vector3<f64>, from: &RigidBody) -> Vector3<f64> {
+fn reorient_rot(v: Vector3<f64>, from: &RigidBody, to: &RigidBody) -> Vector3<f64> {
+    to.orientation.invert().rotate_vector(
+        from.orientation.rotate_vector(v)
+    )
+}
+
+fn reorient_global(v: Vector3<f64>, from: &RigidBody) -> Vector3<f64> {
     from.orientation.rotate_vector(v)
     + from.pos
+}
+
+fn reorient_rot_global(v: Vector3<f64>, from: &RigidBody) -> Vector3<f64> {
+    from.orientation.rotate_vector(v)
 }
