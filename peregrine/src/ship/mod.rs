@@ -157,7 +157,9 @@ impl ShipInterior {
         let mut boxes = Vec::with_capacity(parts.len());
         for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
             objects.append(&mut part.get_objects(part_loader, *layout, i));
-            boxes.push(CollisionBox::new());
+            let (offset, quat) = layout.as_physical();
+            let dimensions = part.get_dimensions();
+            boxes.push(CollisionBox::new(offset, quat.rotate_vector(Vector3::new(dimensions.0 as f64, dimensions.1 as f64, dimensions.2 as f64))));
             for block in part.get_blocks(*layout) {
                 grid.update(block, i);
             }

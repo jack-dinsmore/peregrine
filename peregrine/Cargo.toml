@@ -17,4 +17,6 @@ ndarray = "0.15"
 ndarray-interp = "0.4.1"
 num-traits = "0.2.19"
 rand = "0.8.5"
+env_logger = "0.11.3"
+log = "0.4"
 tethys = { path = "../tethys" }

@@ -88,6 +88,13 @@ impl Part {
         }
         output
     }
+
+    pub(super) fn get_dimensions(&self) -> (u32, u32, u32) {
+        match self {
+            Part::Tank { length } => (1, 1, *length),
+            Part::FuelCell => (1,1,2),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

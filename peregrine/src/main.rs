@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use tethys::prelude::*;
 use cgmath::{Quaternion, Vector3};
 use clap::Parser;
@@ -8,7 +10,8 @@ mod ui;
 mod util;
 
 use ship::{Part, PartLayout, PartLoader, ShipInterior};
-use ui::{PlacementState, UiMode};
+use ui::{FpsCounter, PlacementState, UiMode};
+
 
 
 struct Peregrine {
@@ -18,10 +21,13 @@ struct Peregrine {
     exit: bool,
     size: (u32, u32),
     ui_mode: UiMode,
+    fps_counter: FpsCounter,
 }
 
 impl App for Peregrine {
     fn new(graphics: &Graphics) -> Self {
+        std::env::set_var("RUST_LOG", "warn");
+        env_logger::init();
         let shader = Shader::new::<TexVertex>(graphics, include_str!("../shaders/shader.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
@@ -30,7 +36,7 @@ impl App for Peregrine {
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let mut part_loader = PartLoader::new(graphics);
         let rigid_body = RigidBody::new(Vector3::new(0., 0., 0.), Vector3::new(0., 0.1, 0.), Quaternion::new(1., 0., 0., 0.), Vector3::new(0., 0., 0.), 1., (1., 1., 1.));
-        let parts = vec![Part::Tank {length: 3}, Part::FuelCell];
+        let parts = vec![Part::Tank {length: 3}];//, Part::FuelCell];
         let layout = vec![PartLayout { x: 0, y: 0, z: 0, orientation: 0 }, PartLayout { x: 1, y: 0, z: 0, orientation: 0 }, ];
         let ship = ShipInterior::new(&mut part_loader, parts, layout, rigid_body);
         let size = graphics.get_size();
@@ -42,7 +48,8 @@ impl App for Peregrine {
             ship,
             camera,
             size,
-            ui_mode: UiMode::Placement(PlacementState::new(graphics, Part::Tank { length: 3 }))
+            ui_mode: UiMode::Placement(PlacementState::new(graphics, Part::Tank { length: 3 })),
+            fps_counter: FpsCounter::new(),
         }
     }
 
@@ -86,6 +93,9 @@ impl App for Peregrine {
         if key_state.is_down(Key::Char('e')) {
             self.camera.position -= 2. * delta_t * self.camera.get_up();
         }
+
+        self.fps_counter.update();
+        // dbg!(self.fps_counter.get_fps());
     }
 
     fn exit_check(&self) -> bool {

@@ -68,6 +68,8 @@ impl PlacementState {
             let result = ShipInterior::check_intersection(closest_ship, &self.interior);
             if !result.collision() { break; }
 
+            // dbg!(&result);
+
             let mut biggest_depth = Vector3::new(0., 0., 0.);
             for depth in &result.depths {
                 if depth.magnitude2() > biggest_depth.magnitude2() {
@@ -85,6 +87,7 @@ impl PlacementState {
             // Complete the loop
             iterations += 1;
             if iterations >= 10 || self.distance < MIN_DISTANCE {
+                // dbg!(self.distance, iterations);
                 self.display = false;
                 break;
             }
