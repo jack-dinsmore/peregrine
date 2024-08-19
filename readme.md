@@ -15,8 +15,6 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 ## Todo
 
 ### Part placement
-* Write collision detection between trees
-* Write collision detection between boxes
 * Allow placement of parts
 
 ### Ship aesthetics

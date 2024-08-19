@@ -1,8 +1,8 @@
 use std::ops::Add;
 
-use cgmath::{Deg, Quaternion, Rotation, Rotation3, Vector3};
-use parts::{compose_orientations, ObjectInfo};
-use tethys::{physics::collisions::{CollisionBox, CollisionReport}, prelude::*};
+use cgmath::{Quaternion, Rotation, Vector3};
+use parts::ObjectInfo;
+use tethys::{physics::collisions::{ColliderPackage, CollisionBox}, prelude::*};
 
 mod parts;
 pub use parts::{Part, PartLoader};
@@ -17,34 +17,9 @@ pub struct PartLayout {
 }
 impl PartLayout {
     fn as_physical(&self) -> (Vector3<f64>, Quaternion<f64>) {
-        const RZ0: Quaternion<f64> = Quaternion::new(1., 0., 0., 0.);
-        const RZ1: Quaternion<f64> = Quaternion::new(0., 0., 0., 1.);
-        const RZ2: Quaternion<f64> = Quaternion::new(-1., 0., 0., 0.);
-        const RZ3: Quaternion<f64> = Quaternion::new(0., 0., 0., -1.);
         (
             Vector3::new(self.x as f64, self.y as f64, self.z as f64),
-            match self.orientation {
-                0 => RZ0,
-                1 => RZ1,
-                2 => RZ2,
-                3 => RZ3,
-
-                4 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ0,
-                5 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ1,
-                6 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ2,
-                7 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ3,
-
-                8 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ0,
-                9 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ1,
-                10 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ2,
-                11 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ3,
-
-                12 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ0,
-                13 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ1,
-                14 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ2,
-                15 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ3,
-                _ => panic!("Orientation not supported"),
-            }
+            orientation::to_quat(self.orientation)
         )
     }
 }
@@ -56,7 +31,7 @@ impl Add for PartLayout {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
             z: self.z + rhs.z,
-            orientation: compose_orientations(self.orientation, rhs.orientation)
+            orientation: orientation::compose(self.orientation, rhs.orientation)
         }
     }
 }
@@ -109,8 +84,17 @@ impl PartGrid {
         self.data = new_data;
     }
 
-    fn get_index(&self, x: i32, y: i32, z: i32) -> usize {
-        ((x+self.cx) as u32 + (y+self.cy) as u32 * self.x + (z+self.cz) as u32 * self.x * self.y) as usize
+    /// Return the index of the grid entry corresponding to this position
+    fn get_index(&self, x: i32, y: i32, z: i32) -> isize {
+        ((x+self.cx) + (y+self.cy) * self.x as i32 + (z+self.cz) * self.x as i32 * self.y as i32) as isize
+    }
+
+    /// Return the actual grid entry corresponding to this position. -1 for null
+    fn get_entry(&self, x: i32, y: i32, z: i32) -> isize {
+        if x < 0 || y < 0 || z < 0 { return -1; }
+        if x >= self.cx || y >= self.cy || z >= self.cz { return -1; }
+        let index = self.get_index(x, y, z);
+        self.data[index as usize]
     }
 
     fn update(&mut self, layout: PartLayout, data: usize) {
@@ -130,7 +114,7 @@ impl PartGrid {
                 self.cz - underflow_z,
             );
         }
-        let index = self.get_index(layout.x, layout.y, layout.z);
+        let index = self.get_index(layout.x, layout.y, layout.z) as usize; // I know it's in bounds
         while self.data.len() <= index {
             self.data.push(-1);
         }
@@ -158,7 +142,7 @@ impl ShipInterior {
         for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
             objects.append(&mut part.get_objects(part_loader, *layout, i));
             let (offset, quat) = layout.as_physical();
-            let dimensions = part.get_dimensions();
+            let dimensions = part.get_dimensions(layout.orientation);
             boxes.push(CollisionBox::new(offset, quat.rotate_vector(Vector3::new(dimensions.0 as f64, dimensions.1 as f64, dimensions.2 as f64))));
             for block in part.get_blocks(*layout) {
                 grid.update(block, i);
@@ -192,8 +176,96 @@ impl ShipInterior {
     pub fn objects(&self) -> Vec<&Object> {
         self.objects.iter().map(|o| &o.object).collect::<Vec<_>>()
     }
+
+    pub(crate) fn collider_package(&self) -> ColliderPackage {
+        (&self.collider, &self.rigid_body).into()
+    }
     
-    pub(crate) fn check_intersection(a: &ShipInterior, b: &ShipInterior) -> CollisionReport {
-        Collider::check_intersection((&a.collider, &a.rigid_body).into(), (&b.collider, &b.rigid_body).into())
+    pub(crate) fn is_new_part_allowed(&self, part: Part, layout: PartLayout) -> bool {
+        let (dx, dy, dz) = part.get_dimensions(layout.orientation);
+        for ix in layout.x..layout.x + dx as i32 {
+            for iy in layout.y..layout.y + dy as i32 {
+                for iz in layout.z..layout.z + dz as i32 {
+                    if self.grid.get_entry(ix, iy, iz) != -1 {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+}
+
+pub mod orientation {
+    use core::f64;
+
+    use cgmath::{Deg, InnerSpace, Quaternion, Rotation3, Vector3};
+    const RZ0: Quaternion<f64> = Quaternion::new(1., 0., 0., 0.);
+    const RZ1: Quaternion<f64> = Quaternion::new(0., 0., 0., 1.);
+    const RZ2: Quaternion<f64> = Quaternion::new(-1., 0., 0., 0.);
+    const RZ3: Quaternion<f64> = Quaternion::new(0., 0., 0., -1.);
+
+    pub fn from_quat(q: Quaternion<f64>) -> u8 {
+        let possible_quats = [
+            RZ0,
+            RZ1,
+            RZ2,
+            RZ3,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ0,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ1,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ2,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ3,
+            Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ0,
+            Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ1,
+            Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ2,
+            Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ3,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ0,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ1,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ2,
+            Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ3,
+        ];
+        let mut best_index = 0;
+        let mut best_mag2 = f64::INFINITY;
+        for (i, r) in possible_quats.iter().enumerate() {
+            let mag2 = (q - r).magnitude2();
+            if mag2 < best_mag2 {
+                best_index = i as u8;
+                best_mag2 = mag2;
+            }
+        }
+        best_index
+    }
+
+    pub fn to_quat(orientation: u8) -> Quaternion<f64> {
+        match orientation {
+            0 => RZ0,
+            1 => RZ1,
+            2 => RZ2,
+            3 => RZ3,
+
+            4 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ0,
+            5 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ1,
+            6 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ2,
+            7 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(90.)) * RZ3,
+
+            8 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ0,
+            9 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ1,
+            10 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ2,
+            11 => Quaternion::from_axis_angle(Vector3::new(0., 1., 0.), Deg(90.)) * RZ3,
+
+            12 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ0,
+            13 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ1,
+            14 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ2,
+            15 => Quaternion::from_axis_angle(Vector3::new(1., 0., 0.), Deg(180.)) * RZ3,
+            _ => panic!("Orientation not supported"),
+        }
+    }
+
+    pub fn compose(a: u8, b: u8) -> u8 {
+        from_quat(to_quat(a) * to_quat(b))
+    }
+
+    pub fn rotate_by_quat(a: u8, q: Quaternion<f64>) -> u8 {
+        from_quat(to_quat(a) * q)
     }
 }

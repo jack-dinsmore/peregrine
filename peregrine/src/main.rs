@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use tethys::prelude::*;
 use cgmath::{Quaternion, Vector3};
 use clap::Parser;
@@ -58,13 +56,6 @@ impl App for Peregrine {
 
         match &mut self.ui_mode {
             UiMode::Placement(placement) => {
-                if key_state.is_down(Key::Up) {
-                    placement.desire_distance += 1. * delta_t as f32;
-                }
-                if key_state.is_down(Key::Down) {
-                    placement.desire_distance -= 1. * delta_t as f32;
-                }
-
                 placement.update(&self.camera, &self.ship);
             }
         };

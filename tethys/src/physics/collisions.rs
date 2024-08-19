@@ -11,13 +11,13 @@ const EPSILON: f64 = 1e-5;
 #[derive(Clone, Copy)]
 pub struct ColliderPackage<'a> {
     pub collider: &'a Collider,
-    pub rigid_body: &'a RigidBody,
+    pub rigid_body: Option<&'a RigidBody>,
 }
 impl<'a> From<(&'a Collider, &'a RigidBody)> for ColliderPackage<'a> {
     fn from((collider, rigid_body): (&'a Collider, &'a RigidBody)) -> Self {
         Self {
             collider,
-            rigid_body,
+            rigid_body: Some(rigid_body),
         }
     }
 }
@@ -25,7 +25,16 @@ impl<'a> From<(&'a RigidBody, &'a Collider)> for ColliderPackage<'a> {
     fn from((rigid_body, collider): (&'a RigidBody, &'a Collider)) -> Self {
         Self {
             collider,
-            rigid_body,
+            rigid_body: Some(rigid_body),
+        }
+    }
+}
+
+impl<'a> From<&'a Collider> for ColliderPackage<'a> {
+    fn from(collider: &'a Collider) -> Self {
+        Self {
+            collider,
+            rigid_body: None,
         }
     }
 }
@@ -49,10 +58,10 @@ impl CollisionReport {
             positions: vec![position],
         }
     }
-    fn reorient(&self, from: &RigidBody) -> Self {
+    fn reorient(&self, from: Option<&RigidBody>) -> Self {
         Self {
-            depths: self.depths.iter().map(|v| reorient_rot_global(*v, from)).collect(),
-            positions: self.positions.iter().map(|v| reorient_global(*v, from)).collect(),
+            depths: self.depths.iter().map(|v| reorient_rot(*v, from, None)).collect(),
+            positions: self.positions.iter().map(|v| reorient(*v, from, None)).collect(),
         }
     }
     
@@ -209,7 +218,7 @@ impl CollisionBox {
     }
     
     /// Check for collisions between two boxes
-    fn check_box(&self, rigid_body: &RigidBody, o: &CollisionBox, o_rigid_body: &RigidBody) -> CollisionReport {
+    fn check_box(&self, rigid_body: Option<&RigidBody>, o: &CollisionBox, o_rigid_body: Option<&RigidBody>) -> CollisionReport {
         let mut deepest_report = CollisionReport::none();
 
         // Check points
@@ -236,15 +245,15 @@ impl CollisionBox {
                 deepest_report = report.reorient(o_rigid_body);
             }
         }
-        // for (p, v) in o.get_lines() {
-        //     let report = self.check_line(
-        //         reorient(p, o_rigid_body, rigid_body),
-        //         reorient(v, o_rigid_body, rigid_body)
-        //     );
-        //     if report > deepest_report {
-        //         deepest_report = report.reorient(rigid_body);
-        //     }
-        // }
+        for (p, v) in o.get_lines() {
+            let report = self.check_line(
+                reorient(p, o_rigid_body, rigid_body),
+                reorient_rot(v, o_rigid_body, rigid_body)
+            );
+            if report > deepest_report {
+                deepest_report = report.reorient(rigid_body);
+            }
+        }
 
         deepest_report
     }
@@ -520,24 +529,25 @@ fn check_tree(t: &BinaryTree<CollisionBox>, check_function: impl Fn(&CollisionBo
     report
 }
 
-fn reorient(v: Vector3<f64>, from: &RigidBody, to: &RigidBody) -> Vector3<f64> {
-    to.orientation.invert().rotate_vector(
-        from.orientation.rotate_vector(v)
-        + from.pos - to.pos
-    )
+fn reorient(v: Vector3<f64>, from: Option<&RigidBody>, to: Option<&RigidBody>) -> Vector3<f64> {
+    match (from, to) {
+        (Some(from), Some(to)) => to.orientation.invert().rotate_vector(
+            from.orientation.rotate_vector(v)
+            + from.pos - to.pos
+        ),
+        (None, Some(to)) => to.orientation.invert().rotate_vector(v - to.pos),
+        (Some(from), None) => from.orientation.rotate_vector(v) + from.pos,
+        (None, None) => v,
+    }
 }
 
-fn reorient_rot(v: Vector3<f64>, from: &RigidBody, to: &RigidBody) -> Vector3<f64> {
-    to.orientation.invert().rotate_vector(
-        from.orientation.rotate_vector(v)
-    )
-}
-
-fn reorient_global(v: Vector3<f64>, from: &RigidBody) -> Vector3<f64> {
-    from.orientation.rotate_vector(v)
-    + from.pos
-}
-
-fn reorient_rot_global(v: Vector3<f64>, from: &RigidBody) -> Vector3<f64> {
-    from.orientation.rotate_vector(v)
+fn reorient_rot(v: Vector3<f64>, from: Option<&RigidBody>, to: Option<&RigidBody>) -> Vector3<f64> {
+    match (from, to) {
+        (Some(from), Some(to)) => to.orientation.invert().rotate_vector(
+            from.orientation.rotate_vector(v)
+        ),
+        (None, Some(to)) => to.orientation.invert().rotate_vector(v),
+        (Some(from), None) => from.orientation.rotate_vector(v),
+        (None, None) => v,
+    }
 }

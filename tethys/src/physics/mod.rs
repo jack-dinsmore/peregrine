@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Quaternion, Vector3, Zero};
+use cgmath::{InnerSpace, Quaternion, Rotation, Vector3, Zero};
 
 pub mod collisions;
 
@@ -43,6 +43,14 @@ impl RigidBody {
 
         self.force = Vector3::new(0., 0., 0.);
         self.torque = Quaternion::new(0., 0., 0., 0.);
+    }
+    
+    pub fn to_local(&self, v: Vector3<f64>) -> Vector3<f64> {
+        self.orientation.invert().rotate_vector(v - self.pos)
+    }
+    
+    pub fn to_global(&self, v: Vector3<f64>) -> Vector3<f64> {
+        self.orientation.rotate_vector(v) + self.pos
     }
 }
 

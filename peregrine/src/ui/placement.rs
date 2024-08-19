@@ -1,16 +1,16 @@
-use cgmath::{InnerSpace, Quaternion, Vector3};
+use cgmath::{InnerSpace, Quaternion, Rotation, Vector3};
 use tethys::prelude::*;
 
-use crate::{ship::{Part, PartLayout, PartLoader, ShipInterior}, util::vector_cast};
+use crate::ship::{orientation::{self, from_quat}, Part, PartLayout, PartLoader, ShipInterior};
 
-const MIN_DISTANCE: f32 = 0.5;
 const MAX_DISTANCE: f32 = 5.;
 
 pub struct PlacementState {
     interior: ShipInterior,
-    pub desire_distance: f32,
-    distance: f32,
+    part: Part,
     display: bool,
+    place_coord: Vector3<f64>,// The coordinate on interior that should go where the mouse is
+    part_orientation: u8, // Orientation the part would have
 }
 
 impl PlacementState {
@@ -19,16 +19,16 @@ impl PlacementState {
         let rigid_body = RigidBody::default();
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
         Self {
-            interior:  ShipInterior::new(&mut part_loader, vec![part], vec![layout], rigid_body),
-            desire_distance: 1.,
-            distance: 1.,
-            display: true,
+            part_orientation: from_quat(rigid_body.orientation),
+            interior:  ShipInterior::new(&mut part_loader, vec![part.clone()], vec![layout], rigid_body),
+            display: false,
+            place_coord: Vector3::new(0., 0., 0.),
+            part,
         }
     }
 
     pub fn rotate(&mut self, axis: Vector3<f32>) {
-        self.interior.rigid_body.orientation = self.interior.rigid_body.orientation *
-        if axis.x.abs() > axis.y.abs() && axis.x.abs() > axis.z.abs() {
+        let reorient = if axis.x.abs() > axis.y.abs() && axis.x.abs() > axis.z.abs() {
             if axis.x > 0. {
                 // Rotate around +x
                 Quaternion::new(0., 1., 0., 0.)
@@ -53,47 +53,33 @@ impl PlacementState {
                 Quaternion::new(0., 0., 0., -1.)
             }
         };
+        self.place_coord = reorient.rotate_vector(self.place_coord);
+        self.part_orientation = orientation::rotate_by_quat(self.part_orientation, reorient);
     }
 
     pub fn update(&mut self, camera: &Camera, closest_ship: &ShipInterior) {
-        self.desire_distance = self.desire_distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
-        let look = camera.get_forward();
-        
-        // Find distance
-        self.distance = self.desire_distance;
-        self.display = true;
-        let mut iterations = 0;
-        self.interior.rigid_body.pos = vector_cast(vector_cast(camera.position) + look * self.desire_distance);
-        loop {
-            let result = ShipInterior::check_intersection(closest_ship, &self.interior);
-            if !result.collision() { break; }
+        self.display = false;
+        let line = Collider::Line{p: camera.position, v: camera.get_forward()};
+        let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
+        if !result.collision() { return; }
 
-            // dbg!(&result);
+        let dist = (result.positions[0] - camera.position).magnitude() as f32;
+        if dist > MAX_DISTANCE { return; }
 
-            let mut biggest_depth = Vector3::new(0., 0., 0.);
-            for depth in &result.depths {
-                if depth.magnitude2() > biggest_depth.magnitude2() {
-                    biggest_depth = *depth;
-                }
-            }
-
-            // Move the object closer
-            let projection = look / vector_cast(biggest_depth).dot(look);
-            self.distance -= projection.magnitude();
-            self.interior.rigid_body.pos = vector_cast(vector_cast(camera.position) + look * self.desire_distance);
-
-            // TODO snap to grid and allow placement
-
-            // Complete the loop
-            iterations += 1;
-            if iterations >= 10 || self.distance < MIN_DISTANCE {
-                // dbg!(self.distance, iterations);
-                self.display = false;
-                break;
-            }
+        let pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0]) - self.place_coord;
+        let layout = PartLayout {
+            x: pos_in_grid.x.round() as i32,
+            y: pos_in_grid.y.round() as i32,
+            z: pos_in_grid.z.round() as i32,
+            orientation: self.part_orientation,
         };
+        if !closest_ship.is_new_part_allowed(self.part, layout) { return; }
 
+        // Show the part
+        self.interior.rigid_body.orientation = closest_ship.rigid_body.orientation * orientation::to_quat(self.part_orientation);
+        self.interior.rigid_body.pos = closest_ship.rigid_body.to_global(pos_in_grid);
         self.interior.update_graphics();
+        self.display = true;
     }
     
     pub fn object(&self) -> Vec<&Object> {
