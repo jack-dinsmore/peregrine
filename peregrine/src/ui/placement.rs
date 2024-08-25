@@ -59,18 +59,21 @@ impl PlacementState {
 
     pub fn update(&mut self, camera: &Camera, closest_ship: &ShipInterior) {
         self.display = false;
-        let line = Collider::Line{p: camera.position, v: camera.get_forward()};
+        let line = Collider::Ray{p: camera.position, v: camera.get_forward()};
         let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
         if !result.collision() { return; }
 
         let dist = (result.positions[0] - camera.position).magnitude() as f32;
         if dist > MAX_DISTANCE { return; }
 
-        let pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0]) - self.place_coord;
+        let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - camera.get_forward().normalize() * 0.1) - self.place_coord;
+        pos_in_grid.x = pos_in_grid.x.round();
+        pos_in_grid.y = pos_in_grid.y.round();
+        pos_in_grid.z = pos_in_grid.z.round();
         let layout = PartLayout {
-            x: pos_in_grid.x.round() as i32,
-            y: pos_in_grid.y.round() as i32,
-            z: pos_in_grid.z.round() as i32,
+            x: pos_in_grid.x as i32,
+            y: pos_in_grid.y as i32,
+            z: pos_in_grid.z as i32,
             orientation: self.part_orientation,
         };
         if !closest_ship.is_new_part_allowed(self.part, layout) { return; }

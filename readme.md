@@ -19,6 +19,7 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ### Ship aesthetics
 * Ship exteriors
+* Better metal shader
 * Panels
 * Thrusters
 

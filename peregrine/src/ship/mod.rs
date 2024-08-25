@@ -8,7 +8,7 @@ mod parts;
 pub use parts::{Part, PartLoader};
 
 /// The physical position of a part
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PartLayout {
     pub x: i32,
     pub y: i32,
@@ -141,9 +141,7 @@ impl ShipInterior {
         let mut boxes = Vec::with_capacity(parts.len());
         for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
             objects.append(&mut part.get_objects(part_loader, *layout, i));
-            let (offset, quat) = layout.as_physical();
-            let dimensions = part.get_dimensions(layout.orientation);
-            boxes.push(CollisionBox::new(offset, quat.rotate_vector(Vector3::new(dimensions.0 as f64, dimensions.1 as f64, dimensions.2 as f64))));
+            boxes.push(part.get_collider(layout));
             for block in part.get_blocks(*layout) {
                 grid.update(block, i);
             }
@@ -166,10 +164,10 @@ impl ShipInterior {
 
     /// Update all the objects within the ship according to the physics component
     pub fn update_graphics(&mut self) {
-        for object in &mut self.objects {
-            let (position, orientation) = object.layout.as_physical();
-            object.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
-            object.object.orientation = self.rigid_body.orientation * orientation;
+        for object_info in &mut self.objects {
+            let (position, orientation) = object_info.layout.as_physical();
+            object_info.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
+            object_info.object.orientation = self.rigid_body.orientation * orientation;
         }
     }
     

@@ -26,16 +26,25 @@ impl App for Peregrine {
     fn new(graphics: &Graphics) -> Self {
         std::env::set_var("RUST_LOG", "warn");
         env_logger::init();
-        let shader = Shader::new::<TexVertex>(graphics, include_str!("../shaders/shader.wgsl"), &[
+        let shader = Shader::new::<TexVertex>(graphics, include_str!("shaders/shader.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
             ShaderBinding::Texture,
         ]);
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let mut part_loader = PartLoader::new(graphics);
-        let rigid_body = RigidBody::new(Vector3::new(0., 0., 0.), Vector3::new(0., 0.1, 0.), Quaternion::new(1., 0., 0., 0.), Vector3::new(0., 0., 0.), 1., (1., 1., 1.));
-        let parts = vec![Part::Tank {length: 3}];//, Part::FuelCell];
-        let layout = vec![PartLayout { x: 0, y: 0, z: 0, orientation: 0 }, PartLayout { x: 1, y: 0, z: 0, orientation: 0 }, ];
+        let rigid_body = RigidBody {
+            angvel: Quaternion::new(0., 0., 3.0, 0.0),
+            ..Default::default()
+        };
+        let parts = vec![
+            Part::Tank {length: 3}
+            //, Part::FuelCell
+        ];
+        let layout = vec![
+            PartLayout { x: 0, y: 0, z: 0, orientation: 0 },
+            // PartLayout { x: 1, y: 0, z: 0, orientation: 0 },
+        ];
         let ship = ShipInterior::new(&mut part_loader, parts, layout, rigid_body);
         let size = graphics.get_size();
 

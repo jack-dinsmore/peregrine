@@ -1,3 +1,4 @@
+use core::f64;
 use std::{ops::AddAssign, vec::IntoIter};
 
 use cgmath::{InnerSpace, Rotation, Vector3};
@@ -217,6 +218,84 @@ impl CollisionBox {
         deepest_report
     }
     
+    /// Check for collisions between a box and a line. The origin p and direction v are in the box frame
+    fn check_ray(&self, p: Vector3<f64>, v: Vector3<f64>) -> CollisionReport {
+        let mut closest_report = CollisionReport::none();
+        let mut min_alpha = f64::INFINITY;
+        // Close, normal=x
+        let alpha = (self.corner.x - p.x) / v.x;
+        let x = p + v * alpha;
+        if self.corner.y < x.y && x.y < self.corner.y + self.dimensions.y {
+            if self.corner.z < x.z && x.z < self.corner.z + self.dimensions.z {
+                // It's in
+                if alpha < min_alpha {
+                    min_alpha = alpha;
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        // Far, normal=x
+        let alpha = (self.corner.x + self.dimensions.x - p.x) / v.x;
+        let x = p + v * alpha;
+        if self.corner.y < x.y && x.y < self.corner.y + self.dimensions.y {
+            if self.corner.z < x.z && x.z < self.corner.z + self.dimensions.z {
+                // It's in
+                if alpha < min_alpha {
+                    min_alpha = alpha;
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        // Close, normal=y
+        let alpha = (self.corner.y - p.y) / v.y;
+        let x = p + v * alpha;
+        if self.corner.x < x.x && x.x < self.corner.x + self.dimensions.x {
+            if self.corner.z < x.z && x.z < self.corner.z + self.dimensions.z {
+                // It's in
+                if alpha < min_alpha {
+                    min_alpha = alpha;
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        // Far, normal=y
+        let alpha = (self.corner.y + self.dimensions.y - p.y) / v.y;
+        let x = p + v * alpha;
+        if self.corner.x < x.x && x.x < self.corner.x + self.dimensions.x {
+            if self.corner.z < x.z && x.z < self.corner.z + self.dimensions.z {
+                // It's in
+                if alpha < min_alpha {
+                    min_alpha = alpha;
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        // Close, normal=z
+        let alpha = (self.corner.z - p.z) / v.z;
+        let x = p + v * alpha;
+        if self.corner.y < x.y && x.y < self.corner.y + self.dimensions.y {
+            if self.corner.x < x.x && x.x < self.corner.x + self.dimensions.x {
+                // It's in
+                if alpha < min_alpha {
+                    min_alpha = alpha;
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        // Far, normal=z
+        let alpha = (self.corner.z + self.dimensions.z - p.z) / v.z;
+        let x = p + v * alpha;
+        if self.corner.y < x.y && x.y < self.corner.y + self.dimensions.y {
+            if self.corner.x < x.x && x.x < self.corner.x + self.dimensions.x {
+                // It's in
+                if alpha < min_alpha {
+                    closest_report = CollisionReport::new(v * alpha, x);
+                }
+            }
+        }
+        closest_report
+    }
+    
     /// Check for collisions between two boxes
     fn check_box(&self, rigid_body: Option<&RigidBody>, o: &CollisionBox, o_rigid_body: Option<&RigidBody>) -> CollisionReport {
         let mut deepest_report = CollisionReport::none();
@@ -416,6 +495,7 @@ impl CollisionBox {
 pub enum Collider {
     Point {p: Vector3<f64>},
     Line {p: Vector3<f64>, v: Vector3<f64>},
+    Ray {p: Vector3<f64>, v: Vector3<f64>},
     Box(CollisionBox),
     BoxTree(BinaryTree<CollisionBox>),
 }
@@ -474,8 +554,25 @@ impl Collider {
                 x1.check_box(a.rigid_body, x2, b.rigid_body)
             },
             (Collider::BoxTree(t1), Collider::BoxTree(t2)) => {
-                //TODO optimize
+                //OPTIMIZE
                 check_tree(t1, |x1| check_tree(t2, |x2| x1.check_box(a.rigid_body, x2, b.rigid_body)))
+            },
+            (Collider::Point { .. }, Collider::Ray { .. }) |
+            (Collider::Line { .. }, Collider::Ray { .. }) |
+            (Collider::Ray { .. }, Collider::Point { .. }) |
+            (Collider::Ray { .. }, Collider::Line { .. })|
+            (Collider::Ray { .. }, Collider::Ray { .. }) => CollisionReport::none(),
+            (Collider::Ray { p, v }, Collider::Box(x)) |
+            (Collider::Box(x), Collider::Ray { p, v }) => {
+                let p = reorient(*p, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
+                x.check_ray(p, v)
+            },
+            (Collider::Ray { p, v }, Collider::BoxTree(t)) |
+            (Collider::BoxTree(t), Collider::Ray { p, v }) => {
+                let p = reorient(*p, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
+                check_tree(t, |x| x.check_ray(p, v))
             },
         }
     }

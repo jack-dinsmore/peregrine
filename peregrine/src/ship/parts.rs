@@ -1,4 +1,5 @@
-use tethys::prelude::*;
+use cgmath::{Rotation, Vector3};
+use tethys::{physics::collisions::CollisionBox, prelude::*};
 
 use super::PartLayout;
 
@@ -71,13 +72,13 @@ impl Part {
             Self::Tank { length } => {
                 let cap = part_loader.get_part_model(PartModel::TankCap).clone();
                 let body = part_loader.get_part_model(PartModel::TankBody).clone();
-                output.append(&mut self.get_blocks(layout).into_iter().enumerate().map(|(i, b)| {
+                output.append(&mut self.get_blocks(layout).into_iter().enumerate().map(|(i, layout)| {
                     if i == 0 {
-                        ObjectInfo::new(part_loader.graphics, cap.clone(), b, index)
+                        ObjectInfo::new(part_loader.graphics, cap.clone(), layout, index)
                     } else if i == *length as usize-1 {
-                        ObjectInfo::new(part_loader.graphics, body.clone(), b, index)
+                        ObjectInfo::new(part_loader.graphics, cap.clone(), layout, index)
                     } else {
-                        ObjectInfo::new(part_loader.graphics, cap.clone(), b, index)
+                        ObjectInfo::new(part_loader.graphics, body.clone(), layout, index)
                     }
                 }).collect::<Vec<_>>());
             },
@@ -107,6 +108,14 @@ impl Part {
             13|15 => (dimensions.1, dimensions.0, dimensions.2),
             _ => unreachable!()
         }
+    }
+    
+    pub(crate) fn get_collider(&self, layout: &PartLayout) -> CollisionBox {
+        let dimensions = self.get_dimensions(layout.orientation);
+        let dimensions = Vector3::new(dimensions.0 as f64, dimensions.1 as f64, dimensions.2 as f64);
+        let (offset, quat) = layout.as_physical();
+        let offset = offset - dimensions / 2.;
+        CollisionBox::new(offset, quat.rotate_vector(dimensions))
     }
 }
 
