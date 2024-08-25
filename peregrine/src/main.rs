@@ -113,6 +113,14 @@ impl App for Peregrine {
         }
     }
 
+    fn mouse_down(&mut self, graphics: &Graphics, _mouse: &Mouse) {
+        match &self.ui_mode {
+            UiMode::Placement(placement) => {
+                placement.place(graphics, &mut self.ship)
+            },
+        }
+    }
+
     fn mouse_motion(&mut self, pos: (f64, f64)) {
         let dx = (pos.0 - self.size.0 as f64 / 2.) / 300.;
         let dy = (pos.1 - self.size.1 as f64 / 2.) / 300.;

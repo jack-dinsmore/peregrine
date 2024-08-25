@@ -2,7 +2,7 @@ use std::ops::Add;
 
 use cgmath::{Quaternion, Rotation, Vector3};
 use parts::ObjectInfo;
-use tethys::{physics::collisions::{ColliderPackage, CollisionBox}, prelude::*};
+use tethys::{physics::collisions::ColliderPackage, prelude::*};
 
 mod parts;
 pub use parts::{Part, PartLoader};
@@ -97,6 +97,7 @@ impl PartGrid {
         self.data[index as usize]
     }
 
+    /// Set the value of the grid point at this layout
     fn update(&mut self, layout: PartLayout, data: usize) {
         let underflow_x = 0.min(layout.x + self.cx);
         let underflow_y = 0.min(layout.y + self.cy);
@@ -191,6 +192,16 @@ impl ShipInterior {
             }
         }
         true
+    }
+    
+    pub(crate) fn add_part(&mut self, graphics: &Graphics, part: Part, layout: PartLayout) {
+        let part_index = self.parts.len();
+        self.parts.push(part);
+        self.layouts.push(layout);
+        self.grid.update(layout, part_index);
+        let mut part_loader = PartLoader::new(graphics);
+        let mut objects = part.get_objects(&mut part_loader, layout, part_index);
+        self.objects.append(&mut objects);
     }
 }
 

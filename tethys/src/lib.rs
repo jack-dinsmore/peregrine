@@ -6,6 +6,7 @@ pub mod util;
 pub mod prelude {
     pub use crate::App;
     pub use crate::io::key::{Key, KeyState};
+    pub use crate::io::mouse::Mouse;
     pub use crate::graphics::{Graphics, RenderPass};
     pub use crate::graphics::model::{Model,  LoadedObj, LoadMaterial, LoadMesh};
     pub use crate::graphics::shader::{Shader, ShaderBinding};
@@ -20,7 +21,7 @@ pub mod prelude {
 use std::time::Instant;
 
 use graphics::{Graphics, RenderPass};
-use io::key::KeyState;
+use io::{key::KeyState, mouse::Mouse};
 use winit::{event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
 
 
@@ -34,6 +35,7 @@ pub trait App {
     
     fn key_up(&mut self, _key: Key) {}
     fn key_down(&mut self, _key: Key) {}
+    fn mouse_down(&mut self, _graphics: &Graphics, _mouse: &Mouse) {}
     fn mouse_motion(&mut self, _pos: (f64, f64)) {}
     fn close_requested(&mut self) {}
     fn resize(&mut self, _new_size: (u32, u32)) {}
@@ -47,6 +49,7 @@ async fn main_internal<T: App>() {
     let mut app = T::new(&graphics);
     let mut surface_configured = false;
     let mut key_state = KeyState::new();
+    let mut mouse = Mouse::new();
     let mut time = Instant::now();
 
     event_loop.run(move |event, control_flow| {
@@ -88,6 +91,14 @@ async fn main_internal<T: App>() {
                     },
                     None => (),
                 }
+                WindowEvent::MouseInput {
+                    state: ElementState::Pressed,
+                    button,
+                    ..
+                } => {
+                    mouse.update(*button);
+                    app.mouse_down(&graphics, &mouse)
+                },
                 WindowEvent::Resized(physical_size) => {
                     surface_configured = true;
                     app.resize((physical_size.width, physical_size.height));

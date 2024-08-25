@@ -15,7 +15,10 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 ## Todo
 
 ### Part placement
-* Allow placement of parts
+* Make Part Loader and Graphics singletons
+* Bug fixes
+    - Normals on cap of the tank
+    - Part placement doesn't seem to rotate right
 
 ### Ship aesthetics
 * Ship exteriors

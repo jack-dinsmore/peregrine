@@ -11,6 +11,7 @@ pub struct PlacementState {
     display: bool,
     place_coord: Vector3<f64>,// The coordinate on interior that should go where the mouse is
     part_orientation: u8, // Orientation the part would have
+    layout: Option<PartLayout>,
 }
 
 impl PlacementState {
@@ -24,6 +25,7 @@ impl PlacementState {
             display: false,
             place_coord: Vector3::new(0., 0., 0.),
             part,
+            layout: None,
         }
     }
 
@@ -79,10 +81,17 @@ impl PlacementState {
         if !closest_ship.is_new_part_allowed(self.part, layout) { return; }
 
         // Show the part
+        self.layout = Some(layout);
         self.interior.rigid_body.orientation = closest_ship.rigid_body.orientation * orientation::to_quat(self.part_orientation);
         self.interior.rigid_body.pos = closest_ship.rigid_body.to_global(pos_in_grid);
         self.interior.update_graphics();
         self.display = true;
+    }
+
+    pub fn place(&self, graphics: &Graphics, closest_ship: &mut ShipInterior) {
+        if let Some(layout) = self.layout {
+            closest_ship.add_part(graphics, self.part, layout);
+        }
     }
     
     pub fn object(&self) -> Vec<&Object> {
