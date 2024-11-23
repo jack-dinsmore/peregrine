@@ -12,7 +12,7 @@ pub mod prelude {
     pub use crate::graphics::shader::{Shader, ShaderBinding};
     pub use crate::graphics::camera::Camera;
     pub use crate::graphics::object::Object;
-    pub use crate::graphics::primitives::{Vertex, TexVertex};
+    pub use crate::graphics::primitives::*;
     pub use crate::physics::RigidBody;
     pub use crate::physics::collisions::Collider;
     pub use crate::include_obj;
@@ -22,7 +22,7 @@ use std::time::Instant;
 
 use graphics::{Graphics, RenderPass};
 use io::{key::KeyState, mouse::Mouse};
-use winit::{event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
+use winit::{dpi::LogicalSize, event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
 
 
 pub use io::key::Key;
@@ -43,7 +43,9 @@ pub trait App {
 
 async fn main_internal<T: App>() {
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize{ width: 1280, height: 960})
+        .build(&event_loop).unwrap();
     
     let mut graphics = graphics::Graphics::new(&window).await;
     let mut app = T::new(&graphics);

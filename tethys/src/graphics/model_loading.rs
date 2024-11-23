@@ -70,8 +70,7 @@ impl LoadedObj {
             let specular = material.specular.unwrap_or([0., 0., 0.]);
             let shininess = material.shininess.unwrap_or(0.);
             let normal_texture: Vec<u8> = match material.normal_texture {
-                Some(info) => {
-                    let path = info.split(' ').nth(2).unwrap();
+                Some(path) => {
                     let path = base_path.join(path);
                     fs::read(&path).expect(&format!("Could not open texture {:?}", path))
                 },

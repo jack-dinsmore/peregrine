@@ -13,7 +13,8 @@ use ui::{FpsCounter, PlacementState, UiMode};
 
 
 struct Peregrine {
-    shader: Shader,
+    shader_3d: Shader,
+    shader_2d: Shader,
     camera: Camera,
     ship: ShipInterior,
     exit: bool,
@@ -26,15 +27,19 @@ impl App for Peregrine {
     fn new(graphics: &Graphics) -> Self {
         std::env::set_var("RUST_LOG", "warn");
         env_logger::init();
-        let shader = Shader::new::<TexVertex>(graphics, include_str!("shaders/shader.wgsl"), &[
+        let shader_3d = Shader::new::<TexVertex>(graphics, include_str!("shaders/shader_3d.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
+            ShaderBinding::NoisyTexture,
+        ]);
+        let shader_2d = Shader::new::<ScreenVertex>(graphics, include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
         ]);
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let mut part_loader = PartLoader::new(graphics);
         let rigid_body = RigidBody {
-            angvel: Quaternion::new(0., 0., 0.0, 0.0),
+            angvel: Quaternion::new(0., 1., 0., 0.0),
+            // orientation: Quaternion::new(0., 0., 0., 1.),
             ..Default::default()
         };
         let parts = vec![
@@ -52,7 +57,8 @@ impl App for Peregrine {
 
         Self {
             exit: false,
-            shader,
+            shader_3d,
+            shader_2d,
             ship,
             camera,
             size,
@@ -130,17 +136,19 @@ impl App for Peregrine {
         self.camera.theta = self.camera.theta.clamp(0., std::f32::consts::PI);
     }
     
-    fn render(&self, render_pass: RenderPass) {
-        let render_pass = render_pass
-            .set_camera(&self.camera)
-            .set_shader(&self.shader)
-            .render(&self.ship.objects())
-        ;
+    fn render<'a>(&'a self, mut render_pass: RenderPass<'a>) {
+        // 3D
+        render_pass.set_camera(&self.camera);
+        render_pass.set_shader(&self.shader_3d);
+        render_pass.render(&self.ship.objects());
         match &self.ui_mode {
             UiMode::Placement(placement) => {
                 render_pass.render(&placement.object());
             },
         }
+
+        // 2D
+        render_pass.set_shader(&self.shader_2d);
     }
 }
 

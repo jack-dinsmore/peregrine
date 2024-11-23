@@ -170,7 +170,7 @@ impl Material {
         
         let bind_group = graphics.device.create_bind_group(
             &wgpu::BindGroupDescriptor {
-                layout: &ShaderBinding::Texture.get_bind_group_layout(graphics),
+                layout: &ShaderBinding::NoisyTexture.get_bind_group_layout(graphics),
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,

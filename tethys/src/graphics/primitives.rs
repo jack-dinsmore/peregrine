@@ -12,6 +12,13 @@ pub struct TexVertex {
     pub normal_coords: [f32; 2],
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ScreenVertex {
+    pub position: [f32; 2],
+    pub tex_coords: [f32; 2],
+}
+
 impl Vertex for TexVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -36,6 +43,27 @@ impl Vertex for TexVertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+            ]
+        }
+    }
+}
+
+impl Vertex for ScreenVertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
                 },
             ]

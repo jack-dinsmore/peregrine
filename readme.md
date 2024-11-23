@@ -2,7 +2,7 @@
 
 This is a space-themed video game made by Jack Dinsmore.
 
-It's coded in Rust using the Tethys engine, which I also made. This engine is built on WebGPU (cross-platform), which I highly recommend. It is not designed to work on the web, though in principle it could.
+It's coded in Rust using the Tethys engine, which I also made. This engine is built on WebGPU (cross-platform), which I highly recommend. Tethys is not designed to work on the web, though in principle it could.
 
 ## Description
 
@@ -16,9 +16,6 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ### Part placement
 * Make Part Loader and Graphics singletons
-* Bug fixes
-    - Normals on cap of the tank
-    - Part placement doesn't seem to rotate right
 
 ### Ship aesthetics
 * Ship exteriors
@@ -50,8 +47,9 @@ That concludes a release.
 * Modify the loading macro to only load each material once
 
 ## Instructions for exporting from blender
-* Use Wavefront (experimental) format
-* Use x forward, z up
+* Use Wavefront format
 * You probably want selected only
-* Select UV coordinates, normals, materials, and triangulated mesh
+* OBJ Objects
+* Use X forward, Z up
+* Select Write Normals, Include UVs, Write Materials, Triangulate Faces
 * Select Material Groups

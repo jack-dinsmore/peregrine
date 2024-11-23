@@ -3,7 +3,7 @@ struct CameraUniform {
     light_pos: vec4<f32>,
 };
 struct ModelUniform {
-    worl: mat4x4<f32>,
+    world: mat4x4<f32>,
     rot_mat: mat4x4<f32>,
 };
 struct MaterialUniform {
@@ -39,13 +39,13 @@ fn vs_main(
     out.tex_coords = in.tex_coords;
     out.normal_coords = in.normal_coords;
     out.normal = (model.rot_mat * vec4<f32>(in.normal, 1.)).xyz;
-    out.world_position = model.worl * vec4<f32>(in.position, 1.0);
+    out.world_position = model.world * vec4<f32>(in.position, 1.0);
     out.clip_position = camera.view_proj * out.world_position;
     return out;
 }
 
 
-// Fragment shader
+/// Fragment shader
 @group(2) @binding(0)
 var t_diffuse: texture_2d<f32>;
 @group(2) @binding(1)

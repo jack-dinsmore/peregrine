@@ -76,20 +76,18 @@ impl<'a> RenderPass<'a> {
         }
     }
 
-    pub fn set_camera(mut self, camera: &'a Camera) -> Self {
+    pub fn set_camera(&mut self, camera: &'a Camera) {
         camera.update(&self.graphics);
         self.camera = Some(camera);
-        self
     }
 
-    pub fn set_shader(mut self, shader: &'a Shader) -> Self {
+    pub fn set_shader(&mut self, shader: &'a Shader) {
         self.render_models();
         self.render_pass.set_pipeline(&shader.render_pipeline);
         self.render_pass.set_bind_group(0, &self.camera.expect("You must set a camera").bind_group, &[]);
-        self
     }
 
-    pub fn render(mut self, objects: &[&'a Object]) -> Self {
+    pub fn render(&mut self, objects: &[&'a Object]) {
         for object in objects {
             let index = match self.objects.binary_search_by(|probe| probe.model.cmp(&object.model)){
                 Ok(i) => i,
@@ -97,7 +95,6 @@ impl<'a> RenderPass<'a> {
             };
             self.objects.insert(index, object);
         }
-        self
     }
 }
 

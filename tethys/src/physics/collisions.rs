@@ -506,74 +506,82 @@ impl Collider {
         match (a.collider, b.collider) {
             (Collider::BoxTree(t), Collider::Point { p }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
-                check_tree(t, |x| x.check_point(p))
+                check_tree(t, |x| x.check_point(p)).reorient(a.rigid_body)
             },
             (Collider::Point { p }, Collider::BoxTree(t)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
-                check_tree(t, |x| x.check_point(p))
+                check_tree(t, |x| x.check_point(p)).reorient(b.rigid_body)
             },
             (Collider::BoxTree(t), Collider::Line { p, v }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
                 let v = reorient_rot(*v, b.rigid_body, a.rigid_body);
-                check_tree(t, |x| x.check_line(p, v))
+                check_tree(t, |x| x.check_line(p, v)).reorient(a.rigid_body)
             },
             (Collider::Line { p, v }, Collider::BoxTree(t)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
                 let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
-                check_tree(t, |x| x.check_line(p, v))
+                check_tree(t, |x| x.check_line(p, v)).reorient(b.rigid_body)
             },
             (Collider::BoxTree(t), Collider::Box(x)) => {
-                check_tree(t, |xx| xx.check_box(a.rigid_body, x, b.rigid_body))
+                check_tree(t, |xx| xx.check_box(a.rigid_body, x, b.rigid_body)).reorient(a.rigid_body)
             },
             (Collider::Box(x), Collider::BoxTree(t)) => {
-                check_tree(t, |xx| xx.check_box(b.rigid_body, x, a.rigid_body))
+                check_tree(t, |xx| xx.check_box(b.rigid_body, x, a.rigid_body)).reorient(b.rigid_body)
             },
-            (Collider::Point { .. }, Collider::Point { .. }) => CollisionReport::none(),
-            (Collider::Point { .. }, Collider::Line { .. }) |
-            (Collider::Line { .. }, Collider::Point { .. }) => CollisionReport::none(),
             (Collider::Point { p }, Collider::Box(x)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
-                x.check_point(p)
+                x.check_point(p).reorient(b.rigid_body)
             }
             (Collider::Box(x), Collider::Point { p }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
-                x.check_point(p)
+                x.check_point(p).reorient(a.rigid_body)
             },
-            (Collider::Line { .. }, Collider::Line { .. }) => CollisionReport::none(),
             (Collider::Line { p, v }, Collider::Box(x)) => {
                 let p = reorient(*p, a.rigid_body, b.rigid_body);
                 let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
-                x.check_line(p, v)
+                x.check_line(p, v).reorient(b.rigid_body)
             }
             (Collider::Box(x), Collider::Line { p, v }) => {
                 let p = reorient(*p, b.rigid_body, a.rigid_body);
                 let v = reorient_rot(*v, b.rigid_body, a.rigid_body);
-                x.check_line(p, v)
+                x.check_line(p, v).reorient(a.rigid_body)
             },
             (Collider::Box(x1), Collider::Box(x2)) => {
-                x1.check_box(a.rigid_body, x2, b.rigid_body)
+                x1.check_box(a.rigid_body, x2, b.rigid_body).reorient(a.rigid_body)
             },
             (Collider::BoxTree(t1), Collider::BoxTree(t2)) => {
                 //OPTIMIZE
-                check_tree(t1, |x1| check_tree(t2, |x2| x1.check_box(a.rigid_body, x2, b.rigid_body)))
+                check_tree(t1, |x1| check_tree(t2, |x2| x1.check_box(a.rigid_body, x2, b.rigid_body))).reorient(a.rigid_body)
+            },
+            (Collider::Ray { p, v }, Collider::Box(x)) => {
+                let p = reorient(*p, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
+                x.check_ray(p, v).reorient(b.rigid_body)
+            },
+            (Collider::Box(x), Collider::Ray { p, v }) => {
+                let p = reorient(*p, b.rigid_body, a.rigid_body);
+                let v = reorient_rot(*v, b.rigid_body,a.rigid_body);
+                x.check_ray(p, v).reorient(a.rigid_body)
+            },
+            (Collider::Ray { p, v }, Collider::BoxTree(t)) => {
+                let p = reorient(*p, a.rigid_body, b.rigid_body);
+                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
+                check_tree(t, |x| x.check_ray(p, v)).reorient(b.rigid_body)
+            },
+            (Collider::BoxTree(t), Collider::Ray { p, v }) => {
+                let p = reorient(*p, b.rigid_body, a.rigid_body);
+                let v = reorient_rot(*v, b.rigid_body, a.rigid_body);
+                check_tree(t, |x| x.check_ray(p, v)).reorient(a.rigid_body)
             },
             (Collider::Point { .. }, Collider::Ray { .. }) |
             (Collider::Line { .. }, Collider::Ray { .. }) |
             (Collider::Ray { .. }, Collider::Point { .. }) |
             (Collider::Ray { .. }, Collider::Line { .. })|
+            (Collider::Point { .. }, Collider::Point { .. }) |
+            (Collider::Point { .. }, Collider::Line { .. }) |
+            (Collider::Line { .. }, Collider::Point { .. }) |
+            (Collider::Line { .. }, Collider::Line { .. }) |
             (Collider::Ray { .. }, Collider::Ray { .. }) => CollisionReport::none(),
-            (Collider::Ray { p, v }, Collider::Box(x)) |
-            (Collider::Box(x), Collider::Ray { p, v }) => {
-                let p = reorient(*p, a.rigid_body, b.rigid_body);
-                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
-                x.check_ray(p, v)
-            },
-            (Collider::Ray { p, v }, Collider::BoxTree(t)) |
-            (Collider::BoxTree(t), Collider::Ray { p, v }) => {
-                let p = reorient(*p, a.rigid_body, b.rigid_body);
-                let v = reorient_rot(*v, a.rigid_body, b.rigid_body);
-                check_tree(t, |x| x.check_ray(p, v))
-            },
         }
     }
 

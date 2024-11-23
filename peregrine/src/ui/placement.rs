@@ -61,13 +61,17 @@ impl PlacementState {
 
     pub fn update(&mut self, camera: &Camera, closest_ship: &ShipInterior) {
         self.display = false;
+        
+        // Get the intersection of the mouse pointer with the body
         let line = Collider::Ray{p: camera.position, v: camera.get_forward()};
         let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
         if !result.collision() { return; }
 
+        // Make sure it isn't too far away
         let dist = (result.positions[0] - camera.position).magnitude() as f32;
         if dist > MAX_DISTANCE { return; }
 
+        // Check to see if the part can be placed
         let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - camera.get_forward().normalize() * 0.1) - self.place_coord;
         pos_in_grid.x = pos_in_grid.x.round();
         pos_in_grid.y = pos_in_grid.y.round();
