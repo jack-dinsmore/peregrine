@@ -23,18 +23,21 @@ impl ObjectInfo {
 #[derive(Clone, Copy, Debug)]
 pub enum Part {
     Tank { length: u32 },
+    Box { length: u32, width: u32, height: u32 },
     FuelCell,
 }
 
 impl Part {
+    /// List all the blocks within a part and their 
     pub(super) fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
         let mut output = Vec::new();
         match self {
             Self::Tank { length } => {
+                let z0 = -(*length as i32) / 2;
                 output.push(PartLayout {
                     x: 0,
                     y: 0,
-                    z: 0,
+                    z: z0,
                     orientation: 12
                 } + layout);
 
@@ -42,7 +45,7 @@ impl Part {
                     output.push(PartLayout {
                         x: 0,
                         y: 0,
-                        z: i+1,
+                        z: z0 + i+1,
                         orientation: 0
                     } + layout);
                 }
@@ -50,7 +53,7 @@ impl Part {
                 output.push(PartLayout {
                     x: 0,
                     y: 0,
-                    z: *length as i32 - 1,
+                    z: z0 + *length as i32 - 1,
                     orientation: 0
                 } + layout);
             },
@@ -62,12 +65,39 @@ impl Part {
                     orientation: 0
                 } + layout);
             }
+            Self::Box { length, width, height } => {
+                let x0 = (*length as i32) / -2;
+                let y0 = (*width as i32) / -2;
+                let z0 = (*height as i32) / -2;
+                for i in 0..*length {
+                    for j in 0..*width {
+                        for k in 0..*height {
+                            output.push(PartLayout {
+                                x: x0 + i as i32,
+                                y: y0 + j as i32,
+                                z: z0 + k as i32,
+                                orientation: 0
+                            } + layout);
+                        }
+                    }
+                }
+            }
         }
         output
     }
 
+    /// Gets all the object infos for a part.
     pub(super) fn get_objects(&self, part_loader: &mut PartLoader, layout: PartLayout, index: usize) -> Vec<ObjectInfo> {
         let mut output = Vec::new();
+
+        let mut default = |part_model: PartModel| {
+            // Load the single model for a given part
+            let model = part_loader.get_part_model(part_model).clone();
+            output.append(&mut self.get_blocks(layout).into_iter().map(|b| {
+                ObjectInfo::new(part_loader.graphics, model.clone(), b, index)
+            }).collect::<Vec<_>>());
+        };
+
         match self {
             Self::Tank { length } => {
                 let cap = part_loader.get_part_model(PartModel::TankCap).clone();
@@ -82,12 +112,8 @@ impl Part {
                     }
                 }).collect::<Vec<_>>());
             },
-            Self::FuelCell => {
-                let model = part_loader.get_part_model(PartModel::FuelCell).clone();
-                output.append(&mut self.get_blocks(layout).into_iter().map(|b| {
-                        ObjectInfo::new(part_loader.graphics, model.clone(), b, index)
-                }).collect::<Vec<_>>());
-            }
+            Self::FuelCell =>  default(PartModel::FuelCell),
+            Self::Box { .. } => default(PartModel::Box),
         }
         output
     }
@@ -95,6 +121,7 @@ impl Part {
     pub(super) fn get_dimensions(&self, orientation: u8) -> (u32, u32, u32) {
         let dimensions = match self {
             Part::Tank { length } => (1, 1, *length),
+            Part::Box { length, width, height } => (*length, *width ,*height),
             Part::FuelCell => (1,1,2),
         };
         match orientation {
@@ -123,7 +150,8 @@ impl Part {
 pub enum PartModel {
     TankCap = 0,
     TankBody = 1,
-    FuelCell = 2,
+    Box = 2,
+    FuelCell = 3,
 }
 
 pub struct PartLoader<'a> {
@@ -144,6 +172,7 @@ impl<'a> PartLoader<'a> {
             let loaded_obj = match part {
                 PartModel::TankCap => include_obj!("tank-cap"),
                 PartModel::TankBody => include_obj!("tank-body"),
+                PartModel::Box => include_obj!("box"),
                 PartModel::FuelCell => include_obj!("fuel-cell"),
             };
             self.parts[part as usize] = Some(Model::new(self.graphics, loaded_obj));

@@ -1,8 +1,8 @@
-# Blender 3.2.1 MTL File: 'tank.blend'
-# www.blender.org
+# Blender MTL File: 'tank.blend'
+# Material Count: 1
 
 newmtl tank
-Ns 697.105225
+Ns 697.105173
 Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 1.000000 1.000000 1.000000
@@ -10,5 +10,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+map_Bump normal.png
 map_Kd tank.png
-map_Bump -bm 1.000000 normal.png

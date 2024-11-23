@@ -7,7 +7,7 @@ use tethys::{physics::collisions::ColliderPackage, prelude::*};
 mod parts;
 pub use parts::{Part, PartLoader};
 
-/// The physical position of a part
+/// The physical position of an entire part, or the blocks within a part
 #[derive(Clone, Copy, Debug)]
 pub struct PartLayout {
     pub x: i32,
@@ -205,6 +205,7 @@ impl ShipInterior {
     }
 }
 
+/// Helps manage the orientation of a part
 pub mod orientation {
     use core::f64;
 

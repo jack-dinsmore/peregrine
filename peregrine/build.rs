@@ -6,4 +6,5 @@ fn main() {
     LoadedObj::load_obj("assets/parts/tank-cap.obj").save();
     LoadedObj::load_obj("assets/parts/tank-body.obj").save();
     LoadedObj::load_obj("assets/parts/fuel-cell.obj").save();
+    LoadedObj::load_obj("assets/parts/box.obj").save();
 }
