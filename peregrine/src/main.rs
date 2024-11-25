@@ -1,3 +1,4 @@
+use log::info;
 use tethys::prelude::*;
 use cgmath::{Quaternion, Vector3};
 use clap::Parser;
@@ -13,6 +14,7 @@ use ui::{FpsCounter, PlacementState, UiMode};
 struct Peregrine<'a> {
     shader_3d: Shader,
     shader_2d: Shader,
+    shader_placement: Shader,
     camera: Camera,
     graphics: Graphics<'a>,
     part_data: PartData,
@@ -32,6 +34,11 @@ impl<'a> App for Peregrine<'a> {
             ShaderBinding::Model,
             ShaderBinding::NoisyTexture,
         ]);
+        let shader_placement = Shader::new::<TexVertex>(&graphics, include_str!("shaders/shader_placement.wgsl"), &[
+            ShaderBinding::Camera,
+            ShaderBinding::Model,
+            ShaderBinding::Texture,
+        ]);
         let shader_2d = Shader::new::<ScreenVertex>(&graphics, include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
         ]);
@@ -50,6 +57,7 @@ impl<'a> App for Peregrine<'a> {
             fps_counter: FpsCounter::new(),
             graphics,
             part_data,
+            shader_placement,
         }
     }
 
@@ -64,7 +72,7 @@ impl<'a> App for Peregrine<'a> {
             PartLayout { x: 1, y: 0, z: 0, orientation: 0 },
         ];
         let rigid_body = RigidBody {
-            angvel: Quaternion::new(0., 1., 0., 0.0),
+            angvel: Quaternion::new(0., 0., 0., 0.0),
             // orientation: Quaternion::new(0., 0., 0., 1.),
             ..Default::default()
         };
@@ -76,14 +84,16 @@ impl<'a> App for Peregrine<'a> {
     }
 
     fn tick(&mut self, key_state: &KeyState, delta_t: f64) {
+        info!("FPS: {}", self.fps_counter.get_fps());
         if let Some(ship) = &mut self.ship {
             ship.update(delta_t);
         }
 
         match &mut self.ui_mode {
             UiMode::Placement(placement) => {
-                if let Some(ship) = &self.ship {
+                if let Some(ship) = &mut self.ship {
                     placement.update(&self.camera, ship);
+                    ship.initialize_placement(self.part_data.get_loader(&self.graphics));
                 }
             },
             UiMode::Flying => (),
@@ -115,7 +125,6 @@ impl<'a> App for Peregrine<'a> {
         }
 
         self.fps_counter.update();
-        // dbg!(self.fps_counter.get_fps());
     }
 
     fn exit_check(&self) -> bool {
@@ -161,13 +170,15 @@ impl<'a> App for Peregrine<'a> {
         render_pass.set_camera(&self.camera);
         render_pass.set_shader(&self.shader_3d);
         if let Some(ship) = &self.ship {
-            render_pass.render(&ship.objects());
+            render_pass.render(ship.objects());
         }
-        match &self.ui_mode {
-            UiMode::Placement(placement) => {
-                render_pass.render(&placement.object());
-            },
-            UiMode::Flying => (),
+
+        self.ui_mode.render(&mut render_pass);
+        if self.ui_mode.is_placement() {
+            render_pass.set_shader(&self.shader_placement);
+            if let Some(ship) = &self.ship {
+                render_pass.render(ship.get_placement_objects());
+            }
         }
 
         // 2D

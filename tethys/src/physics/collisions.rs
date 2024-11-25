@@ -406,7 +406,7 @@ impl CollisionBox {
     
     // Returns the smallest box containing all these (assumed to be co-aligned) boxes. Also returns a bool which is true if the returned box is completely full, which assumes that the composing boxes are not intersecting.
     fn superbox(boxes: &[&CollisionBox]) -> (CollisionBox, bool) {
-        if boxes.len() == 0 {panic!("Cannot compute the superbox of just no objects")};
+        if boxes.len() == 0 {panic!("Cannot compute the superbox of zero objects")};
         let mut superbox = boxes[0].clone();
         let mut volume = 0.;
         for x in boxes {

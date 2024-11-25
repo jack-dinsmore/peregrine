@@ -11,6 +11,19 @@ pub struct Object {
     pub(crate) bind_group: wgpu::BindGroup,
 }
 
+pub enum ObjectHandle<'a> {
+    Ref(&'a Object),
+    Own(Object),
+}
+impl<'a> ObjectHandle<'a> {
+    pub fn as_ref(&'a self) -> &'a Object {
+        match self {
+            ObjectHandle::Ref(object) => object,
+            ObjectHandle::Own(object) => &object,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct ModelUniform {
@@ -27,7 +40,7 @@ impl Object {
 
         let model_buffer = graphics.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("Camera Buffer"),
+                label: Some("Model Buffer"),
                 contents: bytemuck::cast_slice(&[uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }

@@ -1,10 +1,12 @@
 use std::ops::Add;
 
 use cgmath::{Quaternion, Rotation, Vector3};
-use parts::ObjectInfo;
+use parts::{ObjectInfo, PartModel};
 use tethys::{physics::collisions::ColliderPackage, prelude::*};
 
 mod parts;
+mod part_grid;
+pub use part_grid::PartGrid;
 pub use parts::{Part, PartData, PartLoader};
 
 /// The physical position of an entire part, or the blocks within a part
@@ -36,93 +38,6 @@ impl Add for PartLayout {
     }
 }
 
-struct PartGrid {
-    data: Vec<isize>,
-    x: u32,
-    y: u32,
-    z: u32,
-    cx: i32,// Where is the origin in these grid coordinates
-    cy: i32,
-    cz: i32
-}
-impl PartGrid {
-    fn new() -> Self {
-        Self {
-            x: 0, y: 0, z: 0,
-            cx: 0, cy: 0, cz: 0,
-            data: Vec::new()
-        }
-    }
-
-    fn with_capacity(x: u32, y: u32, z: u32) -> Self {
-        Self {
-            x, y, z,
-            cx: 0, cy: 0, cz: 0,
-            data: Vec::with_capacity((x * y * z) as usize)
-        }
-    }
-
-    fn reshape(&mut self, x: u32, y: u32, z: u32, cx: i32, cy: i32, cz: i32) {
-        let mut new_data = Vec::with_capacity((x*y*z) as usize);
-        for (i, data) in self.data.iter().enumerate() {
-            if *data < 0 {continue;}
-            let xi = i as i32 % self.x as i32 - self.cx;
-            let yi = (i as i32 / self.x as i32) % self.y as i32 - self.cy;
-            let zi = i as i32 / (self.x * self.y) as i32 - self.cz;
-            let new_index = ((xi+cx) as u32 + (yi+cy) as u32 * x + (zi+cz) as u32 * x * y) as usize;
-            while new_data.len() <= new_index {
-                new_data.push(-1);
-            }
-            new_data[new_index] = *data;
-        }
-        self.x = x;
-        self.y = y;
-        self.z = z;
-        self.cx = cx;
-        self.cy = cy;
-        self.cz = cz;
-        self.data = new_data;
-    }
-
-    /// Return the index of the grid entry corresponding to this position
-    fn get_index(&self, x: i32, y: i32, z: i32) -> isize {
-        ((x+self.cx) + (y+self.cy) * self.x as i32 + (z+self.cz) * self.x as i32 * self.y as i32) as isize
-    }
-
-    /// Return the actual grid entry corresponding to this position. -1 for null
-    fn get_entry(&self, x: i32, y: i32, z: i32) -> isize {
-        if x < 0 || y < 0 || z < 0 { return -1; }
-        if x >= self.cx || y >= self.cy || z >= self.cz { return -1; }
-        let index = self.get_index(x, y, z);
-        self.data[index as usize]
-    }
-
-    /// Set the value of the grid point at this layout
-    fn update(&mut self, layout: PartLayout, data: usize) {
-        let underflow_x = 0.min(layout.x + self.cx);
-        let underflow_y = 0.min(layout.y + self.cy);
-        let underflow_z = 0.min(layout.z + self.cz);
-        let overflow_x = (layout.x + 1).max(self.x as i32);
-        let overflow_y = (layout.y + 1).max(self.y as i32);
-        let overflow_z = (layout.z + 1).max(self.z as i32);
-        if underflow_x < 0 || underflow_y < 0 || underflow_z < 0 || overflow_x as u32 >= self.x || overflow_y as u32 >= self.y || overflow_z as u32 >= self.z {
-            self.reshape(
-                (overflow_x - underflow_x) as u32,
-                (overflow_y - underflow_y) as u32,
-                (overflow_z - underflow_z) as u32,
-                self.cx - underflow_x,
-                self.cy - underflow_y,
-                self.cz - underflow_z,
-            );
-        }
-        let index = self.get_index(layout.x, layout.y, layout.z) as usize; // I know it's in bounds
-        while self.data.len() <= index {
-            self.data.push(-1);
-        }
-        self.data[index] = data as isize;
-    }
-}
-
 
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
@@ -132,6 +47,7 @@ pub struct ShipInterior {
     grid: PartGrid, // Grid of cells that point to the part index of the part that's there
     collider: Collider,
     objects: Vec<ObjectInfo>,
+    placement_objects: Option<Vec<Object>>,
     pub rigid_body: RigidBody,
 }
 
@@ -142,10 +58,8 @@ impl ShipInterior {
         let mut boxes = Vec::with_capacity(parts.len());
         for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
             objects.append(&mut part.get_objects(part_loader.clone(), *layout, i));
-            boxes.push(part.get_collider(layout));
-            for block in part.get_blocks(*layout) {
-                grid.update(block, i);
-            }
+            boxes.push(part.get_collider(*layout));
+            grid.update(part, *layout, i);
         }
         Self {
             parts,
@@ -153,6 +67,7 @@ impl ShipInterior {
             objects,
             grid,
             rigid_body,
+            placement_objects: None,
             collider: Collider::make_tree(boxes),
         }
     }
@@ -165,6 +80,7 @@ impl ShipInterior {
 
     /// Update all the objects within the ship according to the physics component
     pub fn update_graphics(&mut self) {
+        // TODO Remove this
         for object_info in &mut self.objects {
             let (position, orientation) = object_info.layout.as_physical();
             object_info.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
@@ -172,8 +88,28 @@ impl ShipInterior {
         }
     }
     
-    pub fn objects(&self) -> Vec<&Object> {
-        self.objects.iter().map(|o| &o.object).collect::<Vec<_>>()
+    pub fn objects(&self) -> Vec<ObjectHandle> {
+        self.objects.iter().map(|o| ObjectHandle::Ref(&o.object)).collect::<Vec<_>>()
+    }
+    
+    /// Get the list of objects to be painted with the ``placing`` texture
+    pub fn get_placement_objects(&self) -> Vec<ObjectHandle> {
+        self.placement_objects.as_ref().unwrap().iter().map(|o| ObjectHandle::Ref(&o)).collect::<Vec<_>>()
+    }
+
+    /// Get the ship ready for placing parts
+    pub fn initialize_placement(&mut self, part_loader: PartLoader) {
+        if self.placement_objects.is_none() {
+            let mut objects = Vec::new();
+            let placement_model = part_loader.load(PartModel::Placement);
+            let orientation = Quaternion::new(1., 0., 0., 0.,);
+            for ((x, y, z), part_number) in self.grid.indexed_iter() {
+                if part_number == -1 {continue;}
+                let pos = Vector3::new(x as f64, y as f64,z as f64);
+                objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
+            }
+            self.placement_objects = Some(objects);
+        }
     }
 
     pub(crate) fn collider_package(&self) -> ColliderPackage {
@@ -181,14 +117,9 @@ impl ShipInterior {
     }
     
     pub(crate) fn is_new_part_allowed(&self, part: Part, layout: PartLayout) -> bool {
-        let (dx, dy, dz) = part.get_dimensions(layout.orientation);
-        for ix in layout.x..layout.x + dx as i32 {
-            for iy in layout.y..layout.y + dy as i32 {
-                for iz in layout.z..layout.z + dz as i32 {
-                    if self.grid.get_entry(ix, iy, iz) != -1 {
-                        return false;
-                    }
-                }
+        for block in part.get_blocks(layout) {
+            if self.grid.get_entry(block.x, block.y, block.z) != -1 {
+                return false;
             }
         }
         true
@@ -198,17 +129,33 @@ impl ShipInterior {
         let part_index = self.parts.len();
         self.parts.push(part);
         self.layouts.push(layout);
-        self.grid.update(layout, part_index);
-        let mut objects = part.get_objects(part_loader, layout, part_index);
+        self.grid.update(&part, layout, part_index);
+        let mut objects = part.get_objects(part_loader.clone(), layout, part_index);
         self.objects.append(&mut objects);
+        if let Some(objects) = &mut self.placement_objects {
+            let placement_model = part_loader.load(PartModel::Placement);
+            let orientation = Quaternion::new(1., 0., 0., 0.,);
+            for block in part.get_blocks(layout) {
+                let pos = Vector3::new(block.x as f64, block.y as f64, block.z as f64);
+                objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
+            }
+        }
+        
+        // Update collider
+        let mut boxes = Vec::with_capacity(self.parts.len());
+        for (part, layout) in self.parts.iter().zip(&self.layouts) {
+            boxes.push(part.get_collider(*layout));
+        }
+        self.collider = Collider::make_tree(boxes);
     }
 }
 
 /// Helps manage the orientation of a part
 pub mod orientation {
+    // OPTIMIZE
     use core::f64;
 
-    use cgmath::{Deg, InnerSpace, Quaternion, Rotation3, Vector3};
+    use cgmath::{Deg, InnerSpace, Quaternion, Rotation, Rotation3, Vector3};
     const RZ0: Quaternion<f64> = Quaternion::new(1., 0., 0., 0.);
     const RZ1: Quaternion<f64> = Quaternion::new(0., 0., 0., 1.);
     const RZ2: Quaternion<f64> = Quaternion::new(-1., 0., 0., 0.);
@@ -276,5 +223,17 @@ pub mod orientation {
 
     pub fn rotate_by_quat(a: u8, q: Quaternion<f64>) -> u8 {
         from_quat(to_quat(a) * q)
+    }
+    
+    /// Rotates a set of integers around the origin
+    pub(crate) fn rotate_integer(orientation: u8, x: i32, y: i32, z: i32) -> (i32, i32, i32) {
+        let quat = to_quat(orientation);
+        let vec = Vector3::new(x as f64, y as f64, z as f64);
+        let point = quat.rotate_vector(vec);
+        (
+            point.x.round() as i32,
+            point.y.round() as i32,
+            point.z.round() as i32,
+        )
     }
 }

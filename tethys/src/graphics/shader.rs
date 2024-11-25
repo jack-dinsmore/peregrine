@@ -1,9 +1,13 @@
 use super::{primitives::Vertex, Graphics};
 
 pub enum ShaderBinding {
+    /// Shader requires a camera (the camera UBO will be loaded)
     Camera,
+    /// Shader requires a model (the model vertices will be loaded)
     Model,
+    /// Shader requires a texture
     Texture,
+    /// Shader requires a texture with a noise map
     NoisyTexture,
 }
 
@@ -51,6 +55,16 @@ impl ShaderBinding {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
             ],
             ShaderBinding::NoisyTexture => vec![
                 wgpu::BindGroupLayoutEntry {
@@ -141,7 +155,7 @@ impl Shader {
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: graphics.config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),

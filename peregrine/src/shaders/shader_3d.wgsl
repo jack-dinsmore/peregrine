@@ -73,15 +73,19 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let surface_to_camera = normalize(-pos);
     let texture_output = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     let diffuse_color = texture_output.rgb;
-    let specular_coeff = texture_output.a;
+    let diffuse_coeff = (1. - texture_output.a*texture_output.a);
+    let power = material.light_info.z * texture_output.a;
 
     let specular_color = vec3(1., 1., 1.);
     let color = (
-        diffuse_color * material.light_info.x * surface_to_light_dot_normal// Diffuse
-        + specular_coeff * specular_color * material.light_info.y * pow(max(dot(surface_to_camera, surface_to_reflect), 0.), material.light_info.z)// Specular//
+        diffuse_coeff * diffuse_color * material.light_info.x * surface_to_light_dot_normal// Diffuse
+        + diffuse_color * material.light_info.y * pow(max(dot(surface_to_camera, surface_to_reflect), 0.), power)// Specular
     );
-    return vec4(color, 1.);
+    let overage = max(color.r, 1.) + max(color.g, 1.) + max(color.b, 1.) - 3.;
+    return vec4(
+        min(color.r + overage, 1.),
+        min(color.g + overage, 1.),
+        min(color.b + overage, 1.),
+        1.
+    );
 }
-
-
-

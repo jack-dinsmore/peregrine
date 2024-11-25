@@ -2,6 +2,7 @@ mod container;
 mod loading;
 mod mesh;
 mod material;
+mod texture;
 
 use super::Graphics;
 use container::ModelInstance;
@@ -10,6 +11,7 @@ use material::Material;
 
 pub use container::{ModelContainer, ModelLoader};
 pub use loading::LoadedObj;
+pub use texture::Texture;
 
 pub(crate) type ModelInner = (Vec<Mesh>, Vec<Material>);
 

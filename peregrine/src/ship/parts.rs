@@ -1,9 +1,9 @@
 
-use cgmath::{Rotation, Vector3};
+use cgmath::Vector3;
 use strum::FromRepr;
 use tethys::prelude::*;
 
-use super::PartLayout;
+use super::{orientation, PartLayout};
 
 const MODEL_CAPACITY: usize = 64;
 
@@ -33,7 +33,7 @@ pub enum Part {
 }
 
 impl Part {
-    /// List all the blocks within a part and their 
+    /// List all the blocks within a part
     pub(super) fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
         let mut output = Vec::new();
         match self {
@@ -122,42 +122,56 @@ impl Part {
         }
         output
     }
-
-    pub(super) fn get_dimensions(&self, orientation: u8) -> (u32, u32, u32) {
-        let dimensions = match self {
-            Part::Tank { length } => (1, 1, *length),
-            Part::Box { length, width, height } => (*length, *width ,*height),
-            Part::FuelCell => (1,1,2),
-        };
-        match orientation {
-            0|2 => (dimensions.0, dimensions.1, dimensions.2),
-            1|3 => (dimensions.1, dimensions.0, dimensions.2),
-            4|6 => (dimensions.0, dimensions.2, dimensions.1),
-            5|7 => (dimensions.2, dimensions.0, dimensions.1),
-            8|10 => (dimensions.2, dimensions.1, dimensions.0),
-            9|11 => (dimensions.1, dimensions.2, dimensions.0),
-            12|14 => (dimensions.0, dimensions.1, dimensions.2),
-            13|15 => (dimensions.1, dimensions.0, dimensions.2),
-            _ => unreachable!()
-        }
+    
+    pub(crate) fn get_collider(&self, layout: PartLayout) -> CollisionBox {
+        let (ul, lr) = self.get_bbox(layout);
+        let ul = Vector3::new(ul.x as f64, ul.y as f64, ul.z as f64);
+        let lr = Vector3::new(lr.x as f64 + 1., lr.y as f64 + 1., lr.z as f64 + 1.);
+        CollisionBox::new(ul, lr - ul)
     }
     
-    pub(crate) fn get_collider(&self, layout: &PartLayout) -> CollisionBox {
-        let dimensions = self.get_dimensions(layout.orientation);
-        let dimensions = Vector3::new(dimensions.0 as f64, dimensions.1 as f64, dimensions.2 as f64);
-        let (offset, quat) = layout.as_physical();
-        let offset = offset - dimensions / 2.;
-        CollisionBox::new(offset, quat.rotate_vector(dimensions))
+    pub(crate) fn get_bbox(&self, layout: PartLayout) -> (PartLayout, PartLayout) {
+        let mut min_x = i32::MAX;
+        let mut min_y = i32::MAX;
+        let mut min_z = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut max_y = i32::MIN;
+        let mut max_z = i32::MIN;
+        for block in self.get_blocks(layout) {
+            min_x = min_x.min(block.x);
+            min_y = min_y.min(block.y);
+            min_z = min_z.min(block.z);
+            max_x = max_x.max(block.x);
+            max_y = max_y.max(block.y);
+            max_z = max_z.max(block.z);
+        }
+        let (min_x, min_y, min_z) = orientation::rotate_integer(layout.orientation, min_x, min_y, min_z);
+        let (max_x,max_y,max_z) = orientation::rotate_integer(layout.orientation, max_x,max_y,max_z);
+        (
+            PartLayout {
+                x: min_x,
+                y: min_y, 
+                z: min_z,
+                orientation: 0,
+            },
+            PartLayout {
+                x: max_x,
+                y: max_y, 
+                z: max_z,
+                orientation: 0,
+            }
+        )
     }
 }
 
 #[repr(usize)]
 #[derive(Clone, Copy, Debug, FromRepr)]
 pub enum PartModel {
-    TankCap = 0,
-    TankBody = 1,
-    Box = 2,
-    FuelCell = 3,
+    Placement,
+    TankCap,
+    TankBody,
+    Box,
+    FuelCell,
 }
 
 
@@ -177,6 +191,7 @@ impl PartData {
             loader: self.container.loader(|index| {
                 let part = PartModel::from_repr(index).unwrap();
                 let loaded_obj = match part {
+                    PartModel::Placement => include_obj!("placement"),
                     PartModel::TankCap => include_obj!("tank-cap"),
                     PartModel::TankBody => include_obj!("tank-body"),
                     PartModel::Box => include_obj!("box"),
@@ -192,7 +207,7 @@ impl PartData {
 #[derive(Clone)]
 pub struct PartLoader<'a> {
     loader: ModelLoader<'a, MODEL_CAPACITY>,
-    graphics: &'a Graphics<'a>,
+    pub graphics: &'a Graphics<'a>,
 }
 
 impl<'a> PartLoader<'a> {

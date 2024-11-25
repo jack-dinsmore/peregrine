@@ -14,11 +14,17 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
+### Part placement
+* Fix bugs in make_tree
+
 ### Ship aesthetics
 * Ship exteriors
 * Better metal shader
 * Panels
 * Thrusters
+
+### Collisions
+* Make a special collider for a grid of boxes to speed up line (or ray) intersections
 
 ### Wiring
 * Internal linking

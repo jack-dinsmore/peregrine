@@ -97,7 +97,7 @@ impl PlacementState {
         }
     }
     
-    pub fn object(&self) -> Vec<&Object> {
+    pub fn object(&self) -> Vec<ObjectHandle> {
         if self.display {
             self.interior.objects()
         }

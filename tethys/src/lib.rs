@@ -8,10 +8,10 @@ pub mod prelude {
     pub use crate::io::key::{Key, KeyState};
     pub use crate::io::mouse::Mouse;
     pub use crate::graphics::{Graphics, RenderPass};
-    pub use crate::graphics::model::{Model, ModelContainer, ModelLoader, LoadedObj};
+    pub use crate::graphics::model::{Model, Texture, ModelContainer, ModelLoader, LoadedObj};
     pub use crate::graphics::shader::{Shader, ShaderBinding};
     pub use crate::graphics::camera::Camera;
-    pub use crate::graphics::object::Object;
+    pub use crate::graphics::object::{Object, ObjectHandle};
     pub use crate::graphics::primitives::*;
     pub use crate::physics::RigidBody;
     pub use crate::physics::collisions::{Collider, CollisionBox};

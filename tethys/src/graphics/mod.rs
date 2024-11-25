@@ -5,7 +5,8 @@ pub mod object;
 pub mod camera;
 
 use camera::Camera;
-use object::Object;
+use model::Texture;
+use object::ObjectHandle;
 use shader::Shader;
 use wgpu::SurfaceConfiguration;
 use winit::window::Window;
@@ -14,7 +15,8 @@ pub struct RenderPass<'a> {
     graphics: &'a Graphics<'a>,
     render_pass: wgpu::RenderPass<'a>,
     camera: Option<&'a Camera>,
-    objects: Vec<&'a Object>,
+    objects: Vec<ObjectHandle<'a>>,
+    global_material: bool,
 }
 
 impl<'a> RenderPass<'a> {
@@ -26,7 +28,7 @@ impl<'a> RenderPass<'a> {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
+                        r: 0.01,
                         g: 0.0,
                         b: 0.0,
                         a: 1.0,
@@ -50,17 +52,21 @@ impl<'a> RenderPass<'a> {
             render_pass,
             camera: None,
             objects: Vec::new(),
+            global_material: false,
         }
     }
 
     fn render_models(&mut self) {
         for object in self.objects.drain(0..self.objects.len()) {
+            let object = object.as_ref();
             object.update(&self.graphics, self.camera.expect("You must set a camera"));
             self.render_pass.set_bind_group(1, &object.bind_group, &[]);
             // It is guaranteed that the model is borrowed for longer than this function, so move the lifetime of data up to 'a
             let model_data = &object.model.inner();
             for mesh in &model_data.0 {//TODO rearrange order
-                self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].bind_group, &[]);
+                if !self.global_material {
+                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].bind_group, &[]);
+                }
                 self.render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 self.render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 self.render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
@@ -75,13 +81,19 @@ impl<'a> RenderPass<'a> {
 
     pub fn set_shader(&mut self, shader: &'a Shader) {
         self.render_models();
+        self.global_material = false;
         self.render_pass.set_pipeline(&shader.render_pipeline);
         self.render_pass.set_bind_group(0, &self.camera.expect("You must set a camera").bind_group, &[]);
     }
+    
+    pub fn set_global_texture(&mut self, texture: &Texture) {
+        self.global_material = true;
+        self.render_pass.set_bind_group(2, &texture.bind_group, &[]);
+    }
 
-    pub fn render(&mut self, objects: &[&'a Object]) {
+    pub fn render(&mut self, objects: Vec<ObjectHandle<'a>>) {
         for object in objects {
-            let index = match self.objects.binary_search_by(|probe| probe.model.identifier().cmp(&object.model.identifier())) {
+            let index = match self.objects.binary_search_by(|probe| probe.as_ref().model.identifier().cmp(&object.as_ref().model.identifier())) {
                 Ok(i) => i,
                 Err(i) => i,
             };
