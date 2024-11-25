@@ -3,18 +3,12 @@ pub mod shader;
 pub mod primitives;
 pub mod object;
 pub mod camera;
-mod model_loading;
-
-use std::sync::Arc;
 
 use camera::Camera;
-use model::{Material, Mesh};
 use object::Object;
 use shader::Shader;
 use wgpu::SurfaceConfiguration;
 use winit::window::Window;
-
-use crate::App;
 
 pub struct RenderPass<'a> {
     graphics: &'a Graphics<'a>,
@@ -64,9 +58,7 @@ impl<'a> RenderPass<'a> {
             object.update(&self.graphics, self.camera.expect("You must set a camera"));
             self.render_pass.set_bind_group(1, &object.bind_group, &[]);
             // It is guaranteed that the model is borrowed for longer than this function, so move the lifetime of data up to 'a
-            let model_data: &'a (Vec<Mesh>, Vec<Material>) = unsafe {
-                &*Arc::as_ptr(&object.model.model_data)
-            };
+            let model_data = &object.model.inner();
             for mesh in &model_data.0 {//TODO rearrange order
                 self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].bind_group, &[]);
                 self.render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
@@ -89,7 +81,7 @@ impl<'a> RenderPass<'a> {
 
     pub fn render(&mut self, objects: &[&'a Object]) {
         for object in objects {
-            let index = match self.objects.binary_search_by(|probe| probe.model.cmp(&object.model)){
+            let index = match self.objects.binary_search_by(|probe| probe.model.identifier().cmp(&object.model.identifier())) {
                 Ok(i) => i,
                 Err(i) => i,
             };
@@ -110,7 +102,7 @@ pub struct Graphics<'a> {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    pub size: winit::dpi::PhysicalSize<u32>,
+    pub size: (u32, u32),
     window: &'a Window,
     depth_texture_view: wgpu::TextureView,
 }
@@ -174,13 +166,9 @@ impl<'a> Graphics<'a> {
             device,
             queue,
             config,
-            size,
+            size: (size.width, size.height),
             depth_texture_view,
         }
-    }
-
-    pub fn get_size(&self) -> (u32, u32) {
-        (self.size.width, self.size.height)
     }
 
     pub fn make_depth_texture(device: &wgpu::Device, config: &SurfaceConfiguration) -> (wgpu::Texture, wgpu::TextureView, wgpu::Sampler) {
@@ -224,23 +212,23 @@ impl<'a> Graphics<'a> {
         &self.window
     }
 
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
+    pub fn resize(&mut self, new_size: (u32, u32)) {
+        if new_size.0 > 0 && new_size.1 > 0 {
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
+            self.config.width = new_size.0;
+            self.config.height = new_size.1;
             self.surface.configure(&self.device, &self.config);
         }
     }
 
-    pub fn render(&mut self, app: &impl App) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&self, render_execute: impl FnOnce(RenderPass)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
 
-        app.render(RenderPass::new(self, &mut encoder, &view));
+        render_execute(RenderPass::new(self, &mut encoder, &view));
     
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));

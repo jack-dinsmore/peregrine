@@ -8,13 +8,13 @@ pub mod prelude {
     pub use crate::io::key::{Key, KeyState};
     pub use crate::io::mouse::Mouse;
     pub use crate::graphics::{Graphics, RenderPass};
-    pub use crate::graphics::model::{Model,  LoadedObj, LoadMaterial, LoadMesh};
+    pub use crate::graphics::model::{Model, ModelContainer, ModelLoader, LoadedObj};
     pub use crate::graphics::shader::{Shader, ShaderBinding};
     pub use crate::graphics::camera::Camera;
     pub use crate::graphics::object::Object;
     pub use crate::graphics::primitives::*;
     pub use crate::physics::RigidBody;
-    pub use crate::physics::collisions::Collider;
+    pub use crate::physics::collisions::{Collider, CollisionBox};
     pub use crate::include_obj;
 }
 
@@ -28,17 +28,19 @@ use winit::{dpi::LogicalSize, event::{ElementState, Event, KeyEvent, WindowEvent
 pub use io::key::Key;
 
 pub trait App {
-    fn new(graphics: &Graphics) -> Self;
-    fn tick(&mut self, graphics: &Graphics, key_state: &KeyState, delta_t: f64);
-    fn render(&self, render_pass: RenderPass);
+    fn new<'a>(graphics: Graphics<'a>) -> impl App;
+    fn tick(&mut self, key_state: &KeyState, delta_t: f64);
+    fn render<'c, 'b: 'c>(&'b self, render_pass: RenderPass<'c>);
     fn exit_check(&self) -> bool;
+    fn get_graphics(&self) -> &Graphics;
+    fn resize(&mut self, new_size: (u32, u32));
     
+    fn initialize(&mut self) {}
     fn key_up(&mut self, _key: Key) {}
     fn key_down(&mut self, _key: Key) {}
-    fn mouse_down(&mut self, _graphics: &Graphics, _mouse: &Mouse) {}
+    fn mouse_down(&mut self, _mouse: &Mouse) {}
     fn mouse_motion(&mut self, _pos: (f64, f64)) {}
     fn close_requested(&mut self) {}
-    fn resize(&mut self, _new_size: (u32, u32)) {}
 }
 
 async fn main_internal<T: App>() {
@@ -46,21 +48,22 @@ async fn main_internal<T: App>() {
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize{ width: 1280, height: 960})
         .build(&event_loop).unwrap();
-    
-    let mut graphics = graphics::Graphics::new(&window).await;
-    let mut app = T::new(&graphics);
+    let graphics = graphics::Graphics::new(&window).await;
+    let mut app = T::new(graphics);
     let mut surface_configured = false;
     let mut key_state = KeyState::new();
     let mut mouse = Mouse::new();
     let mut time = Instant::now();
+    app.initialize();
 
     event_loop.run(move |event, control_flow| {
         let delta_t = time.elapsed().as_micros() as f64/ 1e6;
         time = Instant::now();
-        app.tick(&graphics, &key_state, delta_t);
+        app.tick(&key_state, delta_t);
+        let window = app.get_graphics().window();
         
         match event {
-            Event::WindowEvent { ref event, window_id, } if window_id == graphics.window().id() => match event {
+            Event::WindowEvent { ref event, window_id, } if window_id == window.id() => match event {
                 WindowEvent::CloseRequested => app.close_requested(),
                 WindowEvent::KeyboardInput {
                     event: KeyEvent {
@@ -99,24 +102,23 @@ async fn main_internal<T: App>() {
                     ..
                 } => {
                     mouse.update(*button);
-                    app.mouse_down(&graphics, &mouse)
+                    app.mouse_down(&mouse)
                 },
                 WindowEvent::Resized(physical_size) => {
                     surface_configured = true;
                     app.resize((physical_size.width, physical_size.height));
-                    graphics.resize(*physical_size);
                 },
                 WindowEvent::RedrawRequested => {
-                    graphics.window().request_redraw();
+                    window.request_redraw();
 
                     if !surface_configured {
                         return;
                     }
 
-                    match graphics.render(&app) {
+                    match app.get_graphics().render(|render_pass| app.render(render_pass)) {
                         Ok(_) => (),
                         // Reconfigure the surface if lost
-                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => graphics.resize(graphics.size),
+                        // Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => app.get_graphics().resize(),
                         // The system is out of memory, we should probably quit
                         Err(wgpu::SurfaceError::OutOfMemory) => control_flow.exit(),
                         // All other errors (Outdated, Timeout) should be resolved by the next frame
@@ -126,7 +128,7 @@ async fn main_internal<T: App>() {
                 _ => {}
             },
             Event::AboutToWait => {
-                graphics.window().request_redraw();
+                window.request_redraw();
             }
             _ => {}
         }

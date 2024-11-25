@@ -15,13 +15,12 @@ pub struct PlacementState {
 }
 
 impl PlacementState {
-    pub fn new(graphics: &Graphics, part: Part) -> Self {
-        let mut part_loader = PartLoader::new(graphics);
+    pub fn new(part_loader: PartLoader, part: Part) -> Self {
         let rigid_body = RigidBody::default();
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
         Self {
             part_orientation: from_quat(rigid_body.orientation),
-            interior:  ShipInterior::new(&mut part_loader, vec![part.clone()], vec![layout], rigid_body),
+            interior:  ShipInterior::new(part_loader, vec![part.clone()], vec![layout], rigid_body),
             display: false,
             place_coord: Vector3::new(0., 0., 0.),
             part,
@@ -92,9 +91,9 @@ impl PlacementState {
         self.display = true;
     }
 
-    pub fn place(&self, graphics: &Graphics, closest_ship: &mut ShipInterior) {
+    pub fn place(&self, part_loader: PartLoader, closest_ship: &mut ShipInterior) {
         if let Some(layout) = self.layout {
-            closest_ship.add_part(graphics, self.part, layout);
+            closest_ship.add_part(part_loader, self.part, layout);
         }
     }
     

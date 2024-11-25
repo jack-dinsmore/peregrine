@@ -1,7 +1,11 @@
+
 use cgmath::{Rotation, Vector3};
-use tethys::{physics::collisions::CollisionBox, prelude::*};
+use strum::FromRepr;
+use tethys::prelude::*;
 
 use super::PartLayout;
+
+const MODEL_CAPACITY: usize = 64;
 
 pub(super) struct ObjectInfo {
     pub object: Object,
@@ -20,6 +24,7 @@ impl ObjectInfo {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum Part {
     Tank { length: u32 },
@@ -87,12 +92,12 @@ impl Part {
     }
 
     /// Gets all the object infos for a part.
-    pub(super) fn get_objects(&self, part_loader: &mut PartLoader, layout: PartLayout, index: usize) -> Vec<ObjectInfo> {
+    pub(super) fn get_objects(&self, part_loader: PartLoader, layout: PartLayout, index: usize) -> Vec<ObjectInfo> {
         let mut output = Vec::new();
 
         let mut default = |part_model: PartModel| {
             // Load the single model for a given part
-            let model = part_loader.get_part_model(part_model).clone();
+            let model = part_loader.load(part_model);
             output.append(&mut self.get_blocks(layout).into_iter().map(|b| {
                 ObjectInfo::new(part_loader.graphics, model.clone(), b, index)
             }).collect::<Vec<_>>());
@@ -100,8 +105,8 @@ impl Part {
 
         match self {
             Self::Tank { length } => {
-                let cap = part_loader.get_part_model(PartModel::TankCap).clone();
-                let body = part_loader.get_part_model(PartModel::TankBody).clone();
+                let cap = part_loader.load(PartModel::TankCap);
+                let body = part_loader.load(PartModel::TankBody);
                 output.append(&mut self.get_blocks(layout).into_iter().enumerate().map(|(i, layout)| {
                     if i == 0 {
                         ObjectInfo::new(part_loader.graphics, cap.clone(), layout, index)
@@ -146,7 +151,8 @@ impl Part {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[repr(usize)]
+#[derive(Clone, Copy, Debug, FromRepr)]
 pub enum PartModel {
     TankCap = 0,
     TankBody = 1,
@@ -154,29 +160,43 @@ pub enum PartModel {
     FuelCell = 3,
 }
 
-pub struct PartLoader<'a> {
-    pub(super) graphics: &'a Graphics<'a>,
-    parts: [Option<Model>; 256],
-}
 
-impl<'a> PartLoader<'a> {
-    pub fn new(graphics: &'a Graphics) -> Self {
+// Stores the ship part models and provides a seamless interface to load them
+pub struct PartData {
+    container: ModelContainer<MODEL_CAPACITY>,
+}
+impl PartData {
+    pub fn new() -> Self {
         Self {
-            parts: [ const {None}; 256],
-            graphics,
+            container: ModelContainer::new()
         }
     }
 
-    pub fn get_part_model(&mut self, part: PartModel) -> Model {
-        if let None = self.parts[part as usize] {
-            let loaded_obj = match part {
-                PartModel::TankCap => include_obj!("tank-cap"),
-                PartModel::TankBody => include_obj!("tank-body"),
-                PartModel::Box => include_obj!("box"),
-                PartModel::FuelCell => include_obj!("fuel-cell"),
-            };
-            self.parts[part as usize] = Some(Model::new(self.graphics, loaded_obj));
+    pub fn get_loader<'a>(&'a self, graphics: &'a Graphics) -> PartLoader<'a> {
+        PartLoader {
+            loader: self.container.loader(|index| {
+                let part = PartModel::from_repr(index).unwrap();
+                let loaded_obj = match part {
+                    PartModel::TankCap => include_obj!("tank-cap"),
+                    PartModel::TankBody => include_obj!("tank-body"),
+                    PartModel::Box => include_obj!("box"),
+                    PartModel::FuelCell => include_obj!("fuel-cell"),
+                };
+                Model::new(graphics, loaded_obj)
+            }),
+            graphics,
         }
-        self.parts[part as usize].as_ref().unwrap().clone()
+    }
+}
+
+#[derive(Clone)]
+pub struct PartLoader<'a> {
+    loader: ModelLoader<'a, MODEL_CAPACITY>,
+    graphics: &'a Graphics<'a>,
+}
+
+impl<'a> PartLoader<'a> {
+    pub fn load(&self, part: PartModel) -> Model {
+        self.loader.borrow(part as usize)
     }
 }

@@ -44,7 +44,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(graphics: &Graphics, position: Vector3<f64>, theta: f32, phi: f32, znear: f32, zfar: f32, fovy: f32) -> Self {
-        let aspect = graphics.size.width as f32 / graphics.size.height as f32;
+        let aspect = graphics.size.0 as f32 / graphics.size.1 as f32;
         let uniform = CameraUniform::new(Matrix4::identity());
 
         let camera_buffer = graphics.device.create_buffer_init(

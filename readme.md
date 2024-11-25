@@ -14,9 +14,6 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
-### Part placement
-* Make Part Loader and Graphics singletons
-
 ### Ship aesthetics
 * Ship exteriors
 * Better metal shader

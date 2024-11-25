@@ -5,7 +5,7 @@ use parts::ObjectInfo;
 use tethys::{physics::collisions::ColliderPackage, prelude::*};
 
 mod parts;
-pub use parts::{Part, PartLoader};
+pub use parts::{Part, PartData, PartLoader};
 
 /// The physical position of an entire part, or the blocks within a part
 #[derive(Clone, Copy, Debug)]
@@ -136,12 +136,12 @@ pub struct ShipInterior {
 }
 
 impl ShipInterior {
-    pub fn new(part_loader: &mut PartLoader, parts: Vec<Part>, layouts: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
+    pub fn new(part_loader: PartLoader, parts: Vec<Part>, layouts: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
         let mut objects = Vec::with_capacity(parts.len());
         let mut grid = PartGrid::new();
         let mut boxes = Vec::with_capacity(parts.len());
         for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
-            objects.append(&mut part.get_objects(part_loader, *layout, i));
+            objects.append(&mut part.get_objects(part_loader.clone(), *layout, i));
             boxes.push(part.get_collider(layout));
             for block in part.get_blocks(*layout) {
                 grid.update(block, i);
@@ -194,13 +194,12 @@ impl ShipInterior {
         true
     }
     
-    pub(crate) fn add_part(&mut self, graphics: &Graphics, part: Part, layout: PartLayout) {
+    pub(crate) fn add_part(&mut self, part_loader: PartLoader, part: Part, layout: PartLayout) {
         let part_index = self.parts.len();
         self.parts.push(part);
         self.layouts.push(layout);
         self.grid.update(layout, part_index);
-        let mut part_loader = PartLoader::new(graphics);
-        let mut objects = part.get_objects(&mut part_loader, layout, part_index);
+        let mut objects = part.get_objects(part_loader, layout, part_index);
         self.objects.append(&mut objects);
     }
 }
