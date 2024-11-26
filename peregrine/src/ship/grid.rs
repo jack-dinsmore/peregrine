@@ -100,9 +100,7 @@ pub fn get_triangle_intersections(grid: &GridCollider, vertices: [(i32, i32, i32
                 let x2 = v2.0 * c2.1 - v2.1 * c2.0;
                 let proj_z_result = (x0 >= 0 && x1 >= 0 && x2 >= 0)||(x0 <= 0 && x1 <= 0 && x2 <= 0);
                 for iz in min_z..=max_z {
-                    let index1 = iz as usize + iy as usize * dvy + ix as usize * dvx;
-                    dbg!(index1, index);
-                    let height = ix as f64 * n.x + iy as f64 * n.y  + iz as f64 * n.z - d;
+                    let height = ix as f64 * n.x + iy as f64 * n.y  + iz as f64 * n.z - d; // TODO Remember to offset by min for this index and the remaining
                     const EPSILON: f64 = 1e-8;
                     signs[index] = if height < -EPSILON {
                         -1 // Vertex was below the triangle

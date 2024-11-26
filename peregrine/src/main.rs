@@ -8,8 +8,8 @@ mod ship;
 mod ui;
 mod util;
 
-use ship::{Part, PartData, PartLayout, ShipInterior};
-use ui::{FpsCounter, PlacePartState, UiMode};
+use ship::{Panel, PanelModel, Part, PartData, PartLayout, ShipInterior};
+use ui::{FpsCounter, PlacePanelState, PlacePartState, UiMode};
 
 struct Peregrine<'a> {
     shader_3d: Shader,
@@ -78,7 +78,8 @@ impl<'a> App for Peregrine<'a> {
 
         let part_loader = self.part_data.get_loader(&self.graphics);
         let ship = ShipInterior::new(part_loader.clone(), parts, layout, Vec::new(), Vec::new(), rigid_body);
-        self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
+        // self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
+        self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);
     }
 
@@ -185,6 +186,8 @@ impl<'a> App for Peregrine<'a> {
         }
 
         self.ui_mode.render(&mut render_pass);
+
+        // Placement
         if self.ui_mode.is_placement() {
             render_pass.set_shader(&self.shader_placement);
             if let Some(ship) = &self.ship {

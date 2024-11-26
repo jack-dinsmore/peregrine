@@ -8,7 +8,7 @@ mod grid;
 pub mod orientation;
 
 pub use part::{Part, PartLayout,  PartData, PartLoader};
-pub use panel::{Panel, PanelLayout};
+pub use panel::{Panel, PanelModel, PanelLayout};
 pub use grid::*;
 
 /// This is the maximum number of parts, because the panel index will start to take over from here
@@ -21,7 +21,7 @@ pub struct ShipInterior {
     part_objects: Vec<Block>,
     part_layouts: Vec<PartLayout>,
 
-    panels: Vec<Panel>,
+    pub panels: Vec<Panel>,
     panel_objects: Vec<Object>,
     panel_layouts: Vec<PanelLayout>,
 
@@ -40,7 +40,9 @@ impl ShipInterior {
             add_part_to_grid(&mut grid, part, *layout, i);
         }
         for (i, (panel, layout)) in panels.iter().zip(&panel_layouts).enumerate() {
-            panel_objects.push(panel.get_object(loader.clone(), *layout));
+            if let Some(object) = panel.get_object(loader.clone(), *layout) {
+                panel_objects.push(object);
+            }
             add_panel_to_grid(&mut grid, panel, (PANEL_START_INDEX + i) as isize);
         }
         Self {
@@ -160,8 +162,9 @@ impl ShipInterior {
         let panel_index = (self.panels.len() + PANEL_START_INDEX) as isize;
         self.panels.push(panel.clone());
         self.panel_layouts.push(layout);
-        let object = panel.get_object(loader, layout);
-        self.panel_objects.push(object);
+        if let Some(object) = panel.get_object(loader, layout) {
+            self.panel_objects.push(object);
+        }
         let grid = self.collider.get_grid_collider_mut().unwrap();
         add_panel_to_grid(grid, &panel, panel_index);
 

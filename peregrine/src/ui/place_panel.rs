@@ -1,19 +1,23 @@
 use tethys::prelude::*;
-use crate::ship::get_corner;
+use crate::ship::{get_corner, PanelModel};
 
 const MAX_DISTANCE: f64 = 10.;
 use crate::ship::{Panel, PanelLayout, PartLoader, ShipInterior};
 
 pub struct PlacePanelState {
     interior: ShipInterior,
-    panel: Panel,
     panel_layout: PanelLayout,
     display: bool,
     place_coords: Vec<(i32, i32, i32)>,// The coordinate on interior that should go where the mouse is
+    cursor_pos: (i32, i32, i32),
 }
 impl PlacePanelState {
-    pub fn new(loader: PartLoader, panel: Panel) -> Self {
+    pub fn new(loader: PartLoader, panel_model: PanelModel) -> Self {
         let rigid_body = RigidBody::default();
+        let panel = Panel {
+            vertices: [(0, 0, 0); 3],
+            panel_model,
+        };
         let layout = PanelLayout {
             
         };
@@ -21,8 +25,8 @@ impl PlacePanelState {
             interior:  ShipInterior::new(loader, Vec::new(), Vec::new(), vec![panel.clone()], vec![layout], rigid_body),
             display: false,
             place_coords: Vec::new(),
-            panel,
             panel_layout: layout,
+            cursor_pos: (0, 0, 0),
         }
     }
 
@@ -44,19 +48,35 @@ impl PlacePanelState {
             let last = self.place_coords.len() - 1;
             if !closest_ship.is_new_panel_allowed([self.place_coords[last-1], self.place_coords[last], corner]) { return; }
         }
+        self.cursor_pos = corner;
+        if self.place_coords.len() <= 1 {return;} // There's nothing to show
 
         // Show the panel
-        self.place_coords.push(corner);
+        let last_index = self.place_coords.len()-1;
+        if self.place_coords[last_index] != corner {
+            self.interior.panels[0].vertices[2] = corner; // Change the panel vertices
+            // TODO recalculate the object
+        }
+        self.interior.rigid_body.pos = closest_ship.rigid_body.pos;
         self.interior.rigid_body.orientation = closest_ship.rigid_body.orientation;
         self.interior.update_graphics();
         self.display = true;
     }
     
+    /// Add the panel vertex. If fewer than three vertices have been selected so far, this will not place the panel.
     pub(crate) fn place(&mut self, loader: PartLoader, ship: &mut ShipInterior) {
-        self.panel.vertices[0] = self.place_coords[0];
-        self.panel.vertices[1] = self.place_coords[1];
-        self.panel.vertices[2] = self.place_coords[2];
-        ship.add_panel(loader, self.panel.clone(), self.panel_layout);
+        let panel = &mut self.interior.panels[0];
+        if self.place_coords.len() == 0 {
+            panel.vertices[0] = self.cursor_pos;
+        } else if self.place_coords.len() == 1 {
+            panel.vertices[1] = self.cursor_pos;
+        } else {
+            panel.vertices[2] = self.cursor_pos;
+            ship.add_panel(loader, panel.clone(), self.panel_layout);
+            panel.vertices[0] = panel.vertices[1]; 
+            panel.vertices[1] = panel.vertices[2]; 
+        }
+        self.place_coords.push(self.cursor_pos);
     }
     
     pub fn object(&self) -> Vec<ObjectHandle> {

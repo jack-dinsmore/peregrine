@@ -29,6 +29,55 @@ pub struct LoadMaterial {
     pub diffuse_texture: Vec<u8>,
 }
 
+impl LoadMaterial {
+    pub fn load_mtl(file_path: &str) -> Self {
+        let base_path = std::path::Path::new(&file_path).parent().unwrap();
+        let mat_buf = fs::read_to_string(&file_path).expect(&format!("Failed to read MTL file {:?}", file_path));
+        let materials = tobj::load_mtl_buf(&mut mat_buf.as_bytes()).unwrap_or_default().0;
+        if materials.len() == 0 {
+            panic!("The material file was empty");
+        }
+        Self::load_mtl_type(&materials[0], base_path)
+    }
+
+    fn load_mtl_type(material: &tobj::Material, base_path: &std::path::Path) -> Self {
+        let name = &material.name;
+        let diffuse = material.diffuse.unwrap_or([0., 0., 0.]);
+        let specular = material.specular.unwrap_or([0., 0., 0.]);
+        let shininess = material.shininess.unwrap_or(0.);
+        let normal_texture: Vec<u8> = match &material.normal_texture {
+            Some(path) => {
+                let path = base_path.join(path);
+                fs::read(&path).expect(&format!("Could not open texture {:?}", path))
+            },
+            None => Vec::new()
+        };
+        let diffuse_texture = match &material.diffuse_texture {
+            Some(path) => {
+                let path = base_path.join(path);
+                fs::read(&path).expect(&format!("Could not open texture {:?}", path))
+            },
+            None => Vec::new()
+        };
+
+        LoadMaterial {
+            name: name.to_string(),
+            diffuse,
+            specular,
+            shininess, 
+            normal_texture,
+            diffuse_texture,
+        }
+    }
+
+    pub fn save(&self) {
+        let serialized = bincode::serialize(&self).unwrap();
+
+        let mut file = File::create(format!("build/{}.bin", self.name)).unwrap();
+        file.write_all(&serialized).unwrap();
+    }
+}
+
 impl LoadModel {
     pub fn load_obj(file_path: &str) -> Self {
         let base_path = std::path::Path::new(&file_path).parent().unwrap();
@@ -63,35 +112,9 @@ impl LoadModel {
                 material_id,
             }
         }).collect::<Vec<_>>();
-    
-        let materials = materials.unwrap_or_default().into_iter().map(|material| {
-            let name = &material.name;
-            let diffuse = material.diffuse.unwrap_or([0., 0., 0.]);
-            let specular = material.specular.unwrap_or([0., 0., 0.]);
-            let shininess = material.shininess.unwrap_or(0.);
-            let normal_texture: Vec<u8> = match material.normal_texture {
-                Some(path) => {
-                    let path = base_path.join(path);
-                    fs::read(&path).expect(&format!("Could not open texture {:?}", path))
-                },
-                None => Vec::new()
-            };
-            let diffuse_texture = match material.diffuse_texture {
-                Some(path) => {
-                    let path = base_path.join(path);
-                    fs::read(&path).expect(&format!("Could not open texture {:?}", path))
-                },
-                None => Vec::new()
-            };
-    
-            LoadMaterial {
-                name: name.to_string(),
-                diffuse,
-                specular,
-                shininess, 
-                normal_texture,
-                diffuse_texture,
-            }
+
+        let materials = materials.unwrap_or_default().iter().map(|material| {
+            LoadMaterial::load_mtl_type(material, base_path)
         }).collect::<Vec<_>>();
     
         Self {

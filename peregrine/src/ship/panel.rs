@@ -1,6 +1,6 @@
 use cgmath::{Quaternion, Vector3};
 use strum::FromRepr;
-use tethys::prelude::*;
+use tethys::{graphics, prelude::*};
 
 use super::PartLoader;
 
@@ -14,10 +14,12 @@ pub enum PanelModel {
 #[derive(Clone, Debug)]
 pub struct Panel {
     pub vertices: [(i32, i32, i32); 3],
-    panel_model: PanelModel,
+    pub panel_model: PanelModel,
 }
 impl Panel {
-    pub(crate) fn get_object(&self, loader: PartLoader, layout: PanelLayout) -> Object {
+    pub(crate) fn get_object(&self, loader: PartLoader, layout: PanelLayout) -> Option<Object> {
+        // Do not try to make an object for a panel that is actually a line
+        if self.vertices[0] == self.vertices[1] || self.vertices[0] == self.vertices[2] || self.vertices[1] == self.vertices[2] {return None;}
         let material = loader.load_panel(self.panel_model);
         let v1 = Vector3::new(
             (self.vertices[1].0 - self.vertices[0].0) as f32,
@@ -39,7 +41,8 @@ impl Panel {
         ).collect::<Vec<_>>();
         let indices = [0, 1, 2, 0, 2, 1];
         let model = Model::from_vertices(&loader.graphics, &vertices, &indices, material);
-        Object::new(&loader.graphics, model, Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.))
+        dbg!();
+        Some(Object::new(&loader.graphics, model, Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.)))
     }
 }
 
