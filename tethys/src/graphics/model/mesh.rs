@@ -5,7 +5,7 @@ use crate::prelude::TexVertex;
 use super::super::Graphics;
 use super::loading::LoadMesh;
 
-pub(crate) struct Mesh {
+pub struct Mesh {
     pub(crate) vertex_buffer: wgpu::Buffer,
     pub(crate) index_buffer: wgpu::Buffer,
     pub(crate) num_indices: u32,

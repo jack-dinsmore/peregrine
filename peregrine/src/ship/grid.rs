@@ -1,9 +1,9 @@
 use tethys::{physics::collisions::ColliderPackage, prelude::*};
-use super::{Part, PartLayout};
+use super::{Panel, PanelLayout, Part, PartLayout};
 
 
 /// Add a part to the grid, where data represents the index of the part
-pub(super) fn update_grid(collider: &mut GridCollider, part: &Part, layout: PartLayout, data: usize) {
+pub(super) fn add_part_to_grid(collider: &mut GridCollider, part: &Part, layout: PartLayout, data: usize) {
     let (ul, lr) = part.get_bbox(layout);
     let underflow_x = (ul.x + collider.cx).min(0);
     let underflow_y = (ul.y + collider.cy).min(0);
@@ -24,6 +24,12 @@ pub(super) fn update_grid(collider: &mut GridCollider, part: &Part, layout: Part
     for block in part.get_blocks(layout) {
         *collider.get_entry_mut(block.x, block.y, block.z).unwrap() = data as isize;
     }
+}
+
+/// Add a part to the grid, where data represents the index of the part
+pub(super) fn add_panel_to_grid(collider: &mut GridCollider, panel: &Panel, layout: PanelLayout, data: usize) {
+    // The part is guaranteed to lie within the grid, but it may take up many spaces so these should all be replaced with the panel data.
+    unimplemented!()
 }
 
 /// Get the closest corner to the given ray 

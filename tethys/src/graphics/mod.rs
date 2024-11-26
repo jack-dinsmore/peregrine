@@ -5,7 +5,7 @@ pub mod object;
 pub mod camera;
 
 use camera::Camera;
-use model::Texture;
+use model::Material;
 use object::ObjectHandle;
 use shader::Shader;
 use wgpu::SurfaceConfiguration;
@@ -65,7 +65,7 @@ impl<'a> RenderPass<'a> {
             let model_data = &object.model.inner();
             for mesh in &model_data.0 {//TODO rearrange order
                 if !self.global_material {
-                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].bind_group, &[]);
+                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].inner(), &[]);
                 }
                 self.render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 self.render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
@@ -86,9 +86,9 @@ impl<'a> RenderPass<'a> {
         self.render_pass.set_bind_group(0, &self.camera.expect("You must set a camera").bind_group, &[]);
     }
     
-    pub fn set_global_texture(&mut self, texture: &Texture) {
+    pub fn set_global_material(&mut self, material: &Material) {
         self.global_material = true;
-        self.render_pass.set_bind_group(2, &texture.bind_group, &[]);
+        self.render_pass.set_bind_group(2, &material.inner(), &[]);
     }
 
     pub fn render(&mut self, objects: Vec<ObjectHandle<'a>>) {

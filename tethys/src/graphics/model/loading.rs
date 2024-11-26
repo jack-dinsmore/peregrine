@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 
 #[derive(Serialize, Deserialize)]
-pub struct LoadedObj {
+pub struct LoadModel {
     pub file_path: String,
     pub meshes: Vec<LoadMesh>,
     pub materials: Vec<LoadMaterial>,
@@ -29,7 +29,7 @@ pub struct LoadMaterial {
     pub diffuse_texture: Vec<u8>,
 }
 
-impl LoadedObj {
+impl LoadModel {
     pub fn load_obj(file_path: &str) -> Self {
         let base_path = std::path::Path::new(&file_path).parent().unwrap();
     
@@ -111,9 +111,17 @@ impl LoadedObj {
 }
 
 #[macro_export]
-macro_rules! include_obj {
+macro_rules! include_model {
     ($file:expr) => {{
         let bytes: &[u8] = include_bytes!(concat!("../../build/", $file, ".bin"));
-        bincode::deserialize::<LoadedObj>(bytes).expect("Failed to deserialize the file")
+        bincode::deserialize::<LoadModel>(bytes).expect("Failed to deserialize the file")
+    }};
+}
+
+#[macro_export]
+macro_rules! include_material {
+    ($file:expr) => {{
+        let bytes: &[u8] = include_bytes!(concat!("../../build/", $file, ".bin"));
+        bincode::deserialize::<LoadMaterial>(bytes).expect("Failed to deserialize the file")
     }};
 }

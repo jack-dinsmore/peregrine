@@ -20,7 +20,7 @@ impl PlacePartState {
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
         Self {
             part_orientation: from_quat(rigid_body.orientation),
-            interior:  ShipInterior::new(part_loader, vec![part.clone()], vec![layout], rigid_body),
+            interior:  ShipInterior::new(part_loader, vec![part.clone()], vec![layout], Vec::new(), Vec::new(), rigid_body),
             display: false,
             place_coord: Vector3::new(0., 0., 0.),
             part,

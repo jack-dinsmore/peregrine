@@ -1,13 +1,26 @@
+use cgmath::Vector3;
 use tethys::prelude::*;
 
-use crate::ship::{Part, PartLoader, ShipInterior};
+use crate::ship::{Panel, PanelLayout, PartLoader, ShipInterior};
 
 pub struct PlacePanelState {
-    
+    interior: ShipInterior,
+    panel: Panel,
+    display: bool,
+    place_coords: Vec<Vector3<f64>>,// The coordinate on interior that should go where the mouse is
 }
 impl PlacePanelState {
-    pub fn new(part_loader: PartLoader, part: Part) -> Self {
-        unimplemented!()
+    pub fn new(loader: PartLoader, panel: Panel) -> Self {
+        let rigid_body = RigidBody::default();
+        let layout = PanelLayout {
+            
+        };
+        Self {
+            interior:  ShipInterior::new(loader, Vec::new(), Vec::new(), vec![panel], vec![layout], rigid_body),
+            display: false,
+            place_coords: Vec::new(),
+            panel,
+        }
     }
 
     pub(crate) fn update(&self, camera: &Camera, ship: &mut ShipInterior) {
@@ -19,6 +32,11 @@ impl PlacePanelState {
     }
     
     pub fn object(&self) -> Vec<ObjectHandle> {
-        unimplemented!()
+        if self.display {
+            self.interior.objects()
+        }
+        else {
+            Vec::new()
+        }
     }
 }

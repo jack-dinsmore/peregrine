@@ -1,72 +1,56 @@
-use std::ops::Add;
-
 use cgmath::{Quaternion, Rotation, Vector3};
-use parts::{ObjectInfo, PartModel};
+use part::{Block, PartModel};
 use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
 
-mod parts;
+mod part;
+mod panel;
 mod grid;
 pub mod orientation;
 
-pub use parts::{Part, PartData, PartLoader};
+pub use part::{Part, PartLayout,  PartData, PartLoader};
+pub use panel::{Panel, PanelLayout};
 use grid::*;
-
-/// The physical position of an entire part, or the blocks within a part
-#[derive(Clone, Copy, Debug)]
-pub struct PartLayout {
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
-    pub orientation: u8,
-}
-impl PartLayout {
-    fn as_physical(&self) -> (Vector3<f64>, Quaternion<f64>) {
-        (
-            Vector3::new(self.x as f64, self.y as f64, self.z as f64),
-            orientation::to_quat(self.orientation)
-        )
-    }
-}
-impl Add for PartLayout {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-            orientation: orientation::compose(self.orientation, rhs.orientation)
-        }
-    }
-}
 
 
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
 pub struct ShipInterior {
     parts: Vec<Part>,
-    layouts: Vec<PartLayout>,
+    part_objects: Vec<Block>,
+    part_layouts: Vec<PartLayout>,
+
+    panels: Vec<Panel>,
+    panel_objects: Vec<Object>,
+    panel_layouts: Vec<PanelLayout>,
+
     collider: Collider,
-    objects: Vec<ObjectInfo>,
     placement_objects: Option<Vec<Object>>,
     pub rigid_body: RigidBody,
 }
 
 impl ShipInterior {
-    pub fn new(part_loader: PartLoader, parts: Vec<Part>, layouts: Vec<PartLayout>, rigid_body: RigidBody) -> Self {
-        let mut objects = Vec::with_capacity(parts.len());
+    pub fn new(loader: PartLoader, parts: Vec<Part>, part_layouts: Vec<PartLayout>, panels: Vec<Panel>, panel_layouts: Vec<PanelLayout>, rigid_body: RigidBody) -> Self {
+        let mut part_objects = Vec::with_capacity(parts.len());
+        let mut panel_objects = Vec::with_capacity(panels.len());
         let mut grid = GridCollider::new();
-        for (i, (part, layout)) in parts.iter().zip(&layouts).enumerate() {
-            objects.append(&mut part.get_objects(part_loader.clone(), *layout, i));
-            update_grid(&mut grid, part, *layout, i);
+        for (i, (part, layout)) in parts.iter().zip(&part_layouts).enumerate() {
+            part_objects.append(&mut part.get_objects(loader.clone(), *layout));
+            add_part_to_grid(&mut grid, part, *layout, i);
+        }
+        for (i, (panel, layout)) in panels.iter().zip(&panel_layouts).enumerate() {
+            panel_objects.push(panel.get_objects(loader.clone(), *layout));
+            add_panel_to_grid(&mut grid, panel, *layout, i);
         }
         Self {
             parts,
-            layouts,
-            objects,
+            part_layouts,
             collider: Collider::Grid(grid),
             rigid_body,
             placement_objects: None,
+            panels,
+            panel_layouts,
+            part_objects,
+            panel_objects,
         }
     }
 
@@ -79,15 +63,26 @@ impl ShipInterior {
     /// Update all the objects within the ship according to the physics component
     pub fn update_graphics(&mut self) {
         // TODO Remove this
-        for object_info in &mut self.objects {
-            let (position, orientation) = object_info.layout.as_physical();
-            object_info.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
-            object_info.object.orientation = self.rigid_body.orientation * orientation;
+        for block in &mut self.part_objects {
+            let (position, orientation) = block.layout.as_physical();
+            block.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
+            block.object.orientation = self.rigid_body.orientation * orientation;
+        }
+        for object in &mut self.panel_objects {
+            object.position = self.rigid_body.pos;
+            object.orientation = self.rigid_body.orientation;
         }
     }
     
     pub fn objects(&self) -> Vec<ObjectHandle> {
-        self.objects.iter().map(|o| ObjectHandle::Ref(&o.object)).collect::<Vec<_>>()
+        let mut output = Vec::with_capacity(self.parts.len() + self.panels.len());
+        for block in &self.part_objects {
+            output.push(ObjectHandle::Ref(&block.object));
+        }
+        for object in &self.panel_objects {
+            output.push(ObjectHandle::Ref(object));
+        }
+        output
     }
     
     /// Get the list of objects to be painted with the ``placing`` texture
@@ -99,7 +94,7 @@ impl ShipInterior {
     pub fn initialize_placement(&mut self, part_loader: PartLoader) {
         if self.placement_objects.is_none() {
             let mut objects = Vec::new();
-            let placement_model = part_loader.load(PartModel::Placement);
+            let placement_model = part_loader.load_part(PartModel::Placement);
             let orientation = Quaternion::new(1., 0., 0., 0.,);
             for ((x, y, z), part_number) in self.collider.get_grid_collider().unwrap().indexed_iter() {
                 if part_number == -1 {continue;}
@@ -126,12 +121,13 @@ impl ShipInterior {
     pub(crate) fn add_part(&mut self, part_loader: PartLoader, part: Part, layout: PartLayout) {
         let part_index = self.parts.len();
         self.parts.push(part);
-        self.layouts.push(layout);
-        update_grid(self.collider.get_grid_collider_mut().unwrap(), &part, layout, part_index);
-        let mut objects = part.get_objects(part_loader.clone(), layout, part_index);
-        self.objects.append(&mut objects);
+        self.part_layouts.push(layout);
+        let mut objects = part.get_objects(part_loader.clone(), layout);
+        self.part_objects.append(&mut objects);
+        add_part_to_grid(self.collider.get_grid_collider_mut().unwrap(), &part, layout, part_index);
+        
         if let Some(objects) = &mut self.placement_objects {
-            let placement_model = part_loader.load(PartModel::Placement);
+            let placement_model = part_loader.load_part(PartModel::Placement);
             let orientation = Quaternion::new(1., 0., 0., 0.,);
             for block in part.get_blocks(layout) {
                 let pos = Vector3::new(block.x as f64, block.y as f64, block.z as f64);

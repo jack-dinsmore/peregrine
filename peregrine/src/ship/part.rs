@@ -1,24 +1,55 @@
 
+use std::ops::Add;
+
+use cgmath::{Quaternion, Vector3};
 use strum::FromRepr;
 use tethys::prelude::*;
 
-use super::{orientation, PartLayout};
+use super::{orientation, panel::PanelModel};
 
 const MODEL_CAPACITY: usize = 64;
+const MATERIAL_CAPACITY: usize = 64;
 
-pub(super) struct ObjectInfo {
+pub(super) struct Block {
     pub object: Object,
     pub layout: PartLayout,
-    pub part_index: usize,
 }
-impl ObjectInfo {
-    fn new(graphics: &Graphics, model: Model, layout: PartLayout, part_index: usize) -> Self {
+impl Block {
+    fn new(graphics: &Graphics, model: Model, layout: PartLayout) -> Self {
         let (position, orientation) = layout.as_physical();
         let object = Object::new(graphics, model, position, orientation);
         Self {
             object,
             layout,
-            part_index
+        }
+    }
+}
+
+/// The physical position of an entire part, or the blocks within a part
+#[derive(Clone, Copy, Debug)]
+pub struct PartLayout {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+    pub orientation: u8,
+}
+impl PartLayout {
+    pub fn as_physical(&self) -> (Vector3<f64>, Quaternion<f64>) {
+        (
+            Vector3::new(self.x as f64, self.y as f64, self.z as f64),
+            orientation::to_quat(self.orientation)
+        )
+    }
+}
+impl Add for PartLayout {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+            orientation: orientation::compose(self.orientation, rhs.orientation)
         }
     }
 }
@@ -91,28 +122,28 @@ impl Part {
     }
 
     /// Gets all the object infos for a part.
-    pub(super) fn get_objects(&self, part_loader: PartLoader, layout: PartLayout, index: usize) -> Vec<ObjectInfo> {
+    pub(super) fn get_objects(&self, part_loader: PartLoader, layout: PartLayout) -> Vec<Block> {
         let mut output = Vec::new();
 
         let mut default = |part_model: PartModel| {
             // Load the single model for a given part
-            let model = part_loader.load(part_model);
+            let model = part_loader.load_part(part_model);
             output.append(&mut self.get_blocks(layout).into_iter().map(|b| {
-                ObjectInfo::new(part_loader.graphics, model.clone(), b, index)
+                Block::new(part_loader.graphics, model.clone(), b)
             }).collect::<Vec<_>>());
         };
 
         match self {
             Self::Tank { length } => {
-                let cap = part_loader.load(PartModel::TankCap);
-                let body = part_loader.load(PartModel::TankBody);
+                let cap = part_loader.load_part(PartModel::TankCap);
+                let body = part_loader.load_part(PartModel::TankBody);
                 output.append(&mut self.get_blocks(layout).into_iter().enumerate().map(|(i, layout)| {
                     if i == 0 {
-                        ObjectInfo::new(part_loader.graphics, cap.clone(), layout, index)
+                        Block::new(part_loader.graphics, cap.clone(), layout)
                     } else if i == *length as usize-1 {
-                        ObjectInfo::new(part_loader.graphics, cap.clone(), layout, index)
+                        Block::new(part_loader.graphics, cap.clone(), layout)
                     } else {
-                        ObjectInfo::new(part_loader.graphics, body.clone(), layout, index)
+                        Block::new(part_loader.graphics, body.clone(), layout)
                     }
                 }).collect::<Vec<_>>());
             },
@@ -169,27 +200,36 @@ pub enum PartModel {
 
 // Stores the ship part models and provides a seamless interface to load them
 pub struct PartData {
-    container: ModelContainer<MODEL_CAPACITY>,
+    model_container: ModelContainer<MODEL_CAPACITY>,
+    material_container: MaterialContainer<MATERIAL_CAPACITY>,
 }
 impl PartData {
     pub fn new() -> Self {
         Self {
-            container: ModelContainer::new()
+            model_container: ModelContainer::new(),
+            material_container: MaterialContainer::new()
         }
     }
 
     pub fn get_loader<'a>(&'a self, graphics: &'a Graphics) -> PartLoader<'a> {
         PartLoader {
-            loader: self.container.loader(|index| {
+            model_loader: self.model_container.loader(|index| {
                 let part = PartModel::from_repr(index).unwrap();
                 let loaded_obj = match part {
-                    PartModel::Placement => include_obj!("placement"),
-                    PartModel::TankCap => include_obj!("tank-cap"),
-                    PartModel::TankBody => include_obj!("tank-body"),
-                    PartModel::Box => include_obj!("box"),
-                    PartModel::FuelCell => include_obj!("fuel-cell"),
+                    PartModel::Placement => include_model!("placement"),
+                    PartModel::TankCap => include_model!("tank-cap"),
+                    PartModel::TankBody => include_model!("tank-body"),
+                    PartModel::Box => include_model!("box"),
+                    PartModel::FuelCell => include_model!("fuel-cell"),
                 };
                 Model::new(graphics, loaded_obj)
+            }),
+            material_loader: self.material_container.loader(|index| {
+                let panel = PanelModel::from_repr(index).unwrap();
+                let loaded_material = match panel {
+                    PanelModel::Metal => include_material!("metal")
+                };
+                Material::new(graphics, &loaded_material)
             }),
             graphics,
         }
@@ -198,12 +238,16 @@ impl PartData {
 
 #[derive(Clone)]
 pub struct PartLoader<'a> {
-    loader: ModelLoader<'a, MODEL_CAPACITY>,
+    material_loader: MaterialLoader<'a, MATERIAL_CAPACITY>,
+    model_loader: ModelLoader<'a, MODEL_CAPACITY>,
     pub graphics: &'a Graphics<'a>,
 }
 
 impl<'a> PartLoader<'a> {
-    pub fn load(&self, part: PartModel) -> Model {
-        self.loader.borrow(part as usize)
+    pub fn load_part(&self, part: PartModel) -> Model {
+        self.model_loader.borrow(part as usize)
+    }
+    pub fn load_panel(&self, panel: PanelModel) -> Material {
+        self.material_loader.borrow(panel as usize)
     }
 }

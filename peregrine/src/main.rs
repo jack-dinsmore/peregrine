@@ -77,7 +77,7 @@ impl<'a> App for Peregrine<'a> {
         };
 
         let part_loader = self.part_data.get_loader(&self.graphics);
-        let ship = ShipInterior::new(part_loader.clone(), parts, layout, rigid_body);
+        let ship = ShipInterior::new(part_loader.clone(), parts, layout, Vec::new(), Vec::new(), rigid_body);
         self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
         self.ship = Some(ship);
     }
