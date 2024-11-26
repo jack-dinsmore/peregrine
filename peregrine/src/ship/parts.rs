@@ -1,5 +1,4 @@
 
-use cgmath::Vector3;
 use strum::FromRepr;
 use tethys::prelude::*;
 
@@ -121,13 +120,6 @@ impl Part {
             Self::Box { .. } => default(PartModel::Box),
         }
         output
-    }
-    
-    pub(crate) fn get_collider(&self, layout: PartLayout) -> CollisionBox {
-        let (ul, lr) = self.get_bbox(layout);
-        let ul = Vector3::new(ul.x as f64, ul.y as f64, ul.z as f64);
-        let lr = Vector3::new(lr.x as f64 + 1., lr.y as f64 + 1., lr.z as f64 + 1.);
-        CollisionBox::new(ul, lr - ul)
     }
     
     pub(crate) fn get_bbox(&self, layout: PartLayout) -> (PartLayout, PartLayout) {

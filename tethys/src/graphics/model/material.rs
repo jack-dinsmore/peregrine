@@ -28,19 +28,24 @@ impl Material {
         let mut entries = Vec::new();
 
         // Load diffuse texture
-        let (diffuse_texture_view, diffuse_sampler) = make_texture(
-            graphics, &material.diffuse_texture,
-            wgpu::AddressMode::ClampToEdge
-        ).unwrap();
-        entries.push(wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
-        });
-        entries.push(wgpu::BindGroupEntry {
-            binding: 1,
-            resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
-        });
-        
+        let diffuse_info = if !material.diffuse_texture.is_empty() {
+            Some(make_texture(
+                graphics, &material.diffuse_texture,
+                wgpu::AddressMode::ClampToEdge
+            ).unwrap())
+        } else {
+            None
+        };
+        if let Some((diffuse_texture_view, diffuse_sampler)) = &diffuse_info {
+            entries.push(wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
+            });
+            entries.push(wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+            });
+        }
         // Load normal texture
         let normal_info = if !material.normal_texture.is_empty() {
             Some(make_texture(
@@ -76,9 +81,11 @@ impl Material {
         });
 
         // Create bind group
-        let bind_group_layout = match normal_info {
-            Some(_) => &ShaderBinding::NoisyTexture.get_bind_group_layout(graphics),
-            None => &ShaderBinding::Texture.get_bind_group_layout(graphics),
+        let bind_group_layout = match (&diffuse_info, &normal_info) {
+            (Some(_), Some(_)) => &ShaderBinding::NoisyTexture.get_bind_group_layout(graphics),
+            (Some(_), None) => &ShaderBinding::Texture.get_bind_group_layout(graphics),
+            (None, Some(_)) => panic!("This material has a normal texture but no normal texture"),
+            (None, None) => &ShaderBinding::Model.get_bind_group_layout(graphics),
         };
         let bind_group = graphics.device.create_bind_group(
             &wgpu::BindGroupDescriptor {

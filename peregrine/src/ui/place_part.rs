@@ -3,9 +3,9 @@ use tethys::prelude::*;
 
 use crate::ship::{orientation::{self, from_quat}, Part, PartLayout, PartLoader, ShipInterior};
 
-const MAX_DISTANCE: f32 = 5.;
+const MAX_DISTANCE: f64 = 5.;
 
-pub struct PlacementState {
+pub struct PlacePartState {
     interior: ShipInterior,
     part: Part,
     display: bool,
@@ -14,7 +14,7 @@ pub struct PlacementState {
     layout: Option<PartLayout>,
 }
 
-impl PlacementState {
+impl PlacePartState {
     pub fn new(part_loader: PartLoader, part: Part) -> Self {
         let rigid_body = RigidBody::default();
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
@@ -62,13 +62,9 @@ impl PlacementState {
         self.display = false;
         
         // Get the intersection of the mouse pointer with the body
-        let line = Collider::Ray{p: camera.position, v: camera.get_forward()};
+        let line = Collider::segment(camera.position, camera.get_forward::<f64>() * MAX_DISTANCE);
         let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
         if !result.collision() { return; }
-
-        // Make sure it isn't too far away
-        let dist = (result.positions[0] - camera.position).magnitude() as f32;
-        if dist > MAX_DISTANCE { return; }
 
         // Check to see if the part can be placed
         let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - camera.get_forward().normalize() * 0.1) - self.place_coord;

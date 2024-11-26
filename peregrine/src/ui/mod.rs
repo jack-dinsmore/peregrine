@@ -1,20 +1,26 @@
-mod placement;
+mod place_part;
+mod place_panel;
 mod fps;
 
-pub use placement::PlacementState;
+pub use place_part::PlacePartState;
+pub use place_panel::PlacePanelState;
 pub use fps::FpsCounter;
 use tethys::prelude::*;
 
 pub enum UiMode {
     Flying,
-    Placement(PlacementState),
+    PlacePart(PlacePartState),
+    PlacePanel(PlacePanelState),
 }
 
 impl UiMode {
     pub(crate) fn render<'a, 'b: 'a>(&'b self, render_pass: &'a mut RenderPass<'b>) {
         match self {
-            UiMode::Placement(placement) => {
-                render_pass.render(placement.object());
+            UiMode::PlacePart(place_part) => {
+                render_pass.render(place_part.object());
+            },
+            UiMode::PlacePanel(place_panel) => {
+                render_pass.render(place_panel.object());
             },
             UiMode::Flying => (),
         }
@@ -24,7 +30,8 @@ impl UiMode {
     pub(crate) fn is_placement(&self) -> bool {
         match self {
             UiMode::Flying => false,
-            UiMode::Placement(_) => true,
+            UiMode::PlacePart(_) => true,
+            UiMode::PlacePanel(_) => true,
         }
     }
 }

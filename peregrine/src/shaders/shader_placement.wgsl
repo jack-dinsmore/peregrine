@@ -26,9 +26,6 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) world_position: vec4<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) normal_coords: vec2<f32>,
 }
 
 @vertex
@@ -37,21 +34,28 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = in.tex_coords;
-    out.normal_coords = in.normal_coords;
-    out.normal = (model.rot_mat * vec4<f32>(in.normal, 1.)).xyz;
-    out.world_position = model.world * vec4<f32>(in.position, 1.0);
-    out.clip_position = camera.view_proj * out.world_position;
+    out.clip_position = camera.view_proj * model.world * vec4<f32>(in.position, 1.0);
     return out;
 }
 
 
 /// Fragment shader
-@group(2) @binding(0)
-var t_diffuse: texture_2d<f32>;
-@group(2) @binding(1)
-var s_diffuse: sampler;
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    if in.clip_position.z < 0.001 {
+        return vec4(0., 0., 0., 0.);
+    }
+    let stretch = 1. / (in.clip_position.z * in.clip_position.z);
+    let scaled_coords_ul = in.tex_coords * stretch;
+    let scaled_coords_lr = (vec2(1., 1.) - in.tex_coords) * stretch;
+    if (
+        scaled_coords_ul.x < 0.1 |
+        scaled_coords_ul.y < 0.1 |
+        scaled_coords_lr.x < 0.1 |
+        scaled_coords_lr.y < 0.1
+    ) {
+        return vec4(1., 1., 1., 1.);
+    } else {
+        return vec4(0., 0., 0., 0.);
+    }
 }

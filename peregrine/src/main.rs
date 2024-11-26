@@ -9,7 +9,7 @@ mod ui;
 mod util;
 
 use ship::{Part, PartData, PartLayout, ShipInterior};
-use ui::{FpsCounter, PlacementState, UiMode};
+use ui::{FpsCounter, PlacePartState, UiMode};
 
 struct Peregrine<'a> {
     shader_3d: Shader,
@@ -37,7 +37,6 @@ impl<'a> App for Peregrine<'a> {
         let shader_placement = Shader::new::<TexVertex>(&graphics, include_str!("shaders/shader_placement.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
-            ShaderBinding::Texture,
         ]);
         let shader_2d = Shader::new::<ScreenVertex>(&graphics, include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
@@ -79,7 +78,7 @@ impl<'a> App for Peregrine<'a> {
 
         let part_loader = self.part_data.get_loader(&self.graphics);
         let ship = ShipInterior::new(part_loader.clone(), parts, layout, rigid_body);
-        self.ui_mode = UiMode::Placement(PlacementState::new(part_loader, Part::Tank { length: 3 }));
+        self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
         self.ship = Some(ship);
     }
 
@@ -90,10 +89,16 @@ impl<'a> App for Peregrine<'a> {
         }
 
         match &mut self.ui_mode {
-            UiMode::Placement(placement) => {
+            UiMode::PlacePart(place_part_state) => {
                 if let Some(ship) = &mut self.ship {
-                    placement.update(&self.camera, ship);
-                    ship.initialize_placement(self.part_data.get_loader(&self.graphics));
+                    place_part_state.update(&self.camera, ship);
+                    ship.initialize_placement(self.part_data.get_loader(&self.graphics)); // TODO move to whenever this UI element is created
+                }
+            },
+            UiMode::PlacePanel(place_panel_state) => {
+                if let Some(ship) = &mut self.ship {
+                    place_panel_state.update(&self.camera, ship);
+                    ship.initialize_placement(self.part_data.get_loader(&self.graphics)); // TODO move to whenever this UI element is created
                 }
             },
             UiMode::Flying => (),
@@ -139,18 +144,24 @@ impl<'a> App for Peregrine<'a> {
         match key {
             Key::Escape => self.exit = true,
             Key::Char('0') => self.ui_mode = UiMode::Flying,
-            // Key::Char('1') => self.ui_mode = UiMode::Placement(PlacementState::new(&self.part_loader, Part::Box { length: 1, width: 1, height: 1 })),
-            // Key::Char('2') => self.ui_mode = UiMode::Placement(PlacementState::new(&self.part_loader, Part::Tank { length: 3 })),
+            // Key::Char('1') => self.ui_mode = UiMode::Placement(PlacePartState::new(&self.part_loader, Part::Box { length: 1, width: 1, height: 1 })),
+            // Key::Char('2') => self.ui_mode = UiMode::Placement(PlacePartState::new(&self.part_loader, Part::Tank { length: 3 })),
             _ => (),
         }
     }
 
     fn mouse_down(&mut self, _mouse: &Mouse) {
         match &self.ui_mode {
-            UiMode::Placement(placement) => {
+            UiMode::PlacePart(place_part_state) => {
                 let part_loader = self.part_data.get_loader(&self.graphics);
                 if let Some(ship) = &mut self.ship {
-                    placement.place(part_loader, ship)
+                    place_part_state.place(part_loader, ship)
+                }
+            },
+            UiMode::PlacePanel(place_panel_state) => {
+                let part_loader = self.part_data.get_loader(&self.graphics);
+                if let Some(ship) = &mut self.ship {
+                    place_panel_state.place(part_loader, ship)
                 }
             },
             UiMode::Flying => (),

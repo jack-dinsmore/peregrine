@@ -14,7 +14,7 @@ pub mod prelude {
     pub use crate::graphics::object::{Object, ObjectHandle};
     pub use crate::graphics::primitives::*;
     pub use crate::physics::RigidBody;
-    pub use crate::physics::collisions::{Collider, CollisionBox};
+    pub use crate::physics::collisions::{Collider, BoxCollider, LineCollider, GridCollider};
     pub use crate::include_obj;
 }
 

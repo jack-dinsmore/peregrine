@@ -1,16 +1,19 @@
-use super::{Part, PartLayout};
+use cgmath::Vector3;
 
-#[derive(Debug)]
-pub struct PartGrid {
+use super::{CollisionReport, LineCollider};
+
+pub struct GridCollider {
     data: Vec<isize>,
-    x: u32,
-    y: u32,
-    z: u32,
-    cx: i32,// Where is the origin in these grid coordinates
-    cy: i32,
-    cz: i32
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+    pub cx: i32,// Where is the origin in these grid coordinates
+    pub cy: i32,
+    pub cz: i32
 }
-impl PartGrid {
+
+impl GridCollider {
+
     pub fn new() -> Self {
         Self {
             x: 0, y: 0, z: 0,
@@ -35,32 +38,15 @@ impl PartGrid {
         self.data[index as usize]
     }
 
-    /// Add a part to the grid, where data represents the index of the part
-    pub fn update(&mut self, part: &Part, layout: PartLayout, data: usize) {
-        let (ul, lr) = part.get_bbox(layout);
-        let underflow_x = (ul.x + self.cx).min(0);
-        let underflow_y = (ul.y + self.cy).min(0);
-        let underflow_z = (ul.z + self.cz).min(0);
-        let overflow_x = (lr.x + self.cx).max(self.x as i32);
-        let overflow_y = (lr.y + self.cy).max(self.y as i32);
-        let overflow_z = (lr.z + self.cz).max(self.z as i32);
-        if underflow_x < 0 || underflow_y < 0 || underflow_z < 0 || overflow_x as u32 >= self.x || overflow_y as u32 >= self.y || overflow_z as u32 >= self.z {
-            self.reshape(
-                (overflow_x - underflow_x) as u32+1,
-                (overflow_y - underflow_y) as u32+1,
-                (overflow_z - underflow_z) as u32+1,
-                self.cx - underflow_x,
-                self.cy - underflow_y,
-                self.cz - underflow_z,
-            );
-        } 
-        for block in part.get_blocks(layout) {
-            let index = self.get_index(block.x, block.y, block.z) as usize;
-            self.data[index] = data as isize;
-        }
+    /// Returns a mutable reference to the actual grid entry corresponding to this position. None for null
+    pub fn get_entry_mut(&mut self, x: i32, y: i32, z: i32) -> Option<&mut isize> {
+        if x < -self.cx || y < -self.cy || z < -self.cz { return None; }
+        if x >=self.x as i32-self.cx || y >= self.z as i32-self.cz || z >= self.z as i32-self.cz { return None; }
+        let index = self.get_index(x, y, z);
+        Some(&mut self.data[index as usize])
     }
 
-    fn reshape(&mut self, x: u32, y: u32, z: u32, cx: i32, cy: i32, cz: i32) {
+    pub fn reshape(&mut self, x: u32, y: u32, z: u32, cx: i32, cy: i32, cz: i32) {
         let mut new_data = vec![-1; (x*y*z) as usize];
         for ((xi, yi, zi), data) in self.indexed_iter() {
             let new_index = ((xi+cx) as u32 + (yi+cy) as u32 * x + (zi+cz) as u32 * x * y) as usize;
@@ -86,11 +72,19 @@ impl PartGrid {
             grid: self
         }
     }
+
+    pub(crate) fn check_line(&self, line: LineCollider) -> CollisionReport {
+        unimplemented!()
+    }
+    
+    pub(crate) fn check_point(&self, p: Vector3<f64>) -> CollisionReport {
+        unimplemented!()
+    }
 }
 
 pub struct IndexedIterator<'a> {
     index: u32,
-    grid: &'a PartGrid
+    grid: &'a GridCollider
 }
 
 impl Iterator for IndexedIterator<'_> {
