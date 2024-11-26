@@ -151,7 +151,7 @@ impl<'a> App for Peregrine<'a> {
     }
 
     fn mouse_down(&mut self, _mouse: &Mouse) {
-        match &self.ui_mode {
+        match &mut self.ui_mode {
             UiMode::PlacePart(place_part_state) => {
                 let part_loader = self.part_data.get_loader(&self.graphics);
                 if let Some(ship) = &mut self.ship {

@@ -9,8 +9,10 @@ pub mod orientation;
 
 pub use part::{Part, PartLayout,  PartData, PartLoader};
 pub use panel::{Panel, PanelLayout};
-use grid::*;
+pub use grid::*;
 
+/// This is the maximum number of parts, because the panel index will start to take over from here
+const PANEL_START_INDEX: usize = 65536;
 
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
@@ -38,8 +40,8 @@ impl ShipInterior {
             add_part_to_grid(&mut grid, part, *layout, i);
         }
         for (i, (panel, layout)) in panels.iter().zip(&panel_layouts).enumerate() {
-            panel_objects.push(panel.get_objects(loader.clone(), *layout));
-            add_panel_to_grid(&mut grid, panel, *layout, i);
+            panel_objects.push(panel.get_object(loader.clone(), *layout));
+            add_panel_to_grid(&mut grid, panel, (PANEL_START_INDEX + i) as isize);
         }
         Self {
             parts,
@@ -118,6 +120,24 @@ impl ShipInterior {
         true
     }
     
+    pub(crate) fn is_new_line_allowed(&self, vertices: [(i32, i32, i32); 2]) -> bool {
+        let start = Vector3::new(vertices[0].0 as f64, vertices[0].1 as f64, vertices[0].2 as f64);
+        let stop = Vector3::new(vertices[1].0 as f64, vertices[1].1 as f64, vertices[1].2 as f64);
+        let line = Collider::Line(LineCollider::segment(start, stop-start));
+        let collision = Collider::check_intersection(self.collider_package(), (&line).into());
+        collision.collision()
+    }
+    
+    pub(crate) fn is_new_panel_allowed(&self, vertices: [(i32, i32, i32); 3]) -> bool {
+        let grid = self.collider.get_grid_collider().unwrap();
+        for (x, y, z) in get_triangle_intersections(grid, vertices) {
+            if grid.get_entry(x, y, z) != -1 {
+                return false;
+            }
+        }
+        true
+    }
+
     pub(crate) fn add_part(&mut self, part_loader: PartLoader, part: Part, layout: PartLayout) {
         let part_index = self.parts.len();
         self.parts.push(part);
@@ -134,5 +154,17 @@ impl ShipInterior {
                 objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
             }
         }
+    }
+    
+    pub(crate) fn add_panel(&mut self, loader: PartLoader, panel: Panel, layout: PanelLayout) {
+        let panel_index = (self.panels.len() + PANEL_START_INDEX) as isize;
+        self.panels.push(panel.clone());
+        self.panel_layouts.push(layout);
+        let object = panel.get_object(loader, layout);
+        self.panel_objects.push(object);
+        let grid = self.collider.get_grid_collider_mut().unwrap();
+        add_panel_to_grid(grid, &panel, panel_index);
+
+        // TODO update placement panels, when they exist 
     }
 }

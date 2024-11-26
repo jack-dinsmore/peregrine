@@ -29,9 +29,6 @@ pub enum Collider {
 }
 
 impl Collider {
-    pub fn segment(p: Vector3<f64>, v: Vector3<f64>) -> Self {
-        Self::Line(LineCollider::segment(p, v))
-    }
     /// Check for intersections between two generic colliders
     pub fn check_intersection(a: ColliderPackage, b: ColliderPackage) -> CollisionReport {
         match (a.collider, b.collider) {

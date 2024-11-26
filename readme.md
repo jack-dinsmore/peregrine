@@ -14,17 +14,18 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
+### Ship aesthetics
+* Ship exteriors
+* Better metal shader
+
 ### Collisions
 * Make a special collider for a grid of boxes
 * Use this to determine the placement of new parts
 * Use this to make a panel insertion utility
 
-
-### Ship aesthetics
-* Ship exteriors
-* Better metal shader
-* Panels
-* Thrusters
+### Aesthetics
+* Make the placement lines actual lines drawn by the shader
+* Thrusters model
 
 ### Wiring
 * Internal linking

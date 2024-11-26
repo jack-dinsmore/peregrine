@@ -62,15 +62,31 @@ impl PlacePartState {
         self.display = false;
         
         // Get the intersection of the mouse pointer with the body
-        let line = Collider::segment(camera.position, camera.get_forward::<f64>() * MAX_DISTANCE);
+        let forward = camera.get_forward::<f64>().normalize();
+        let line = Collider::Line(
+            LineCollider::segment(camera.position, forward * MAX_DISTANCE)
+        );
         let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
         if !result.collision() { return; }
+        dbg!(result.positions[0]);
 
         // Check to see if the part can be placed
-        let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - camera.get_forward().normalize() * 0.1) - self.place_coord;
-        pos_in_grid.x = pos_in_grid.x.round();
-        pos_in_grid.y = pos_in_grid.y.round();
-        pos_in_grid.z = pos_in_grid.z.round();
+        let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - forward * 0.001) - self.place_coord;
+        if forward.x > 0. {
+            pos_in_grid.x = pos_in_grid.x.floor();
+        } else {
+            pos_in_grid.x = pos_in_grid.x.ceil();
+        }
+        if forward.y > 0. {
+            pos_in_grid.y = pos_in_grid.y.floor();
+        } else {
+            pos_in_grid.y = pos_in_grid.y.ceil();
+        }
+        if forward.z > 0. {
+            pos_in_grid.z = pos_in_grid.z.floor();
+        } else {
+            pos_in_grid.z = pos_in_grid.z.ceil();
+        }
         let layout = PartLayout {
             x: pos_in_grid.x as i32,
             y: pos_in_grid.y as i32,

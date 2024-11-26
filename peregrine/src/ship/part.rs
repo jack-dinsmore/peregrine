@@ -7,8 +7,8 @@ use tethys::prelude::*;
 
 use super::{orientation, panel::PanelModel};
 
-const MODEL_CAPACITY: usize = 64;
-const MATERIAL_CAPACITY: usize = 64;
+pub const MODEL_CAPACITY: usize = 64;
+pub const MATERIAL_CAPACITY: usize = 64;
 
 pub(super) struct Block {
     pub object: Object,

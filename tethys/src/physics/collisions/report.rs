@@ -40,9 +40,11 @@ impl<'a> From<&'a Collider> for ColliderPackage<'a> {
 
 #[derive(Clone, Debug)]
 pub struct CollisionReport {
+    /// Vector that points from the surface of the shape to the collision point
     pub depths: Vec<Vector3<f64>>,
     pub positions: Vec<Vector3<f64>>,
-    pub index: Vec<isize>, // Value of the grid if collided with a grid
+    /// Value of the grid if collided with a grid
+    pub index: Vec<isize>,
 }
 
 impl CollisionReport {

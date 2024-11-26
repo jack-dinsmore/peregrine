@@ -9,7 +9,6 @@ pub struct TexVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
     pub normal: [f32; 3],
-    pub normal_coords: [f32; 2],
 }
 
 #[repr(C)]

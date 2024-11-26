@@ -65,7 +65,7 @@ impl<'a> RenderPass<'a> {
             let model_data = &object.model.inner();
             for mesh in &model_data.0 {//TODO rearrange order
                 if !self.global_material {
-                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_id].inner(), &[]);
+                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_index].inner(), &[]);
                 }
                 self.render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 self.render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);

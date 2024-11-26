@@ -3,6 +3,8 @@ mod loading;
 mod mesh;
 mod material;
 
+use crate::prelude::TexVertex;
+
 use super::Graphics;
 use container::{Container, Loader, MaybeInstanced};
 pub use mesh::Mesh;
@@ -26,6 +28,12 @@ impl Model {
             materials.push(Material::new(graphics, load_material));
         }
 
+        Model::Singleton((meshes, materials))
+    }
+
+    pub fn from_vertices(graphics: &Graphics, vertices: &[TexVertex], indices: &[u16], material: Material) -> Model {
+        let meshes = vec![Mesh::from_vertices(graphics, vertices, indices, 0)];
+        let materials = vec![material];
         Model::Singleton((meshes, materials))
     }
 

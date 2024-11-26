@@ -13,7 +13,7 @@ pub struct LineCollider {
     pub stop: Option<f64>
 }
 impl LineCollider {
-    pub(crate) fn segment(p: Vector3<f64>, v: Vector3<f64>) -> Self {
+    pub fn segment(p: Vector3<f64>, v: Vector3<f64>) -> Self {
         Self {
             p,
             v,
