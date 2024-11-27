@@ -14,18 +14,15 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
-### Ship aesthetics
-* Ship exteriors
-* Better metal shader
-
-### Aesthetics
-* Make the placement lines actual lines drawn by the shader and get rid of the placement texture
-* UI to select which blocks to place and how to turn off placement
-* Thrusters model
-
 ### Wiring
 * Internal linking
 * Controls
+
+### Ship aesthetics
+* Better metal shader
+* Make the placement lines actual lines drawn by the shader and get rid of the placement texture
+* UI to select which blocks to place and how to turn off placement
+* Thrusters model
 
 ### Planets
 * Terrain rendering
