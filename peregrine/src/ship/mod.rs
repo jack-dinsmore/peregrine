@@ -102,7 +102,7 @@ impl ShipInterior {
             let orientation = Quaternion::new(1., 0., 0., 0.,);
             for ((x, y, z), part_number) in self.collider.get_grid_collider().unwrap().indexed_iter() {
                 if part_number == -1 {continue;}
-                let pos = Vector3::new(x as f64, y as f64,z as f64);
+                let pos = Vector3::new(x as f64 + 0.5, y as f64 + 0.5,z as f64 + 0.5);
                 objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
             }
             self.placement_objects = Some(objects);
@@ -167,7 +167,5 @@ impl ShipInterior {
         }
         let grid = self.collider.get_grid_collider_mut().unwrap();
         add_panel_to_grid(grid, &panel, panel_index);
-
-        // TODO update placement panels, when they exist 
     }
 }

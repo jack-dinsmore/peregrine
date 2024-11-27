@@ -100,7 +100,7 @@ pub fn get_triangle_intersections(grid: &GridCollider, vertices: [(i32, i32, i32
                 let x2 = v2.0 * c2.1 - v2.1 * c2.0;
                 let proj_z_result = (x0 >= 0 && x1 >= 0 && x2 >= 0)||(x0 <= 0 && x1 <= 0 && x2 <= 0);
                 for iz in min_z..=max_z {
-                    let height = ix as f64 * n.x + iy as f64 * n.y  + iz as f64 * n.z - d; // TODO Remember to offset by min for this index and the remaining
+                    let height = ix as f64 * n.x + iy as f64 * n.y  + iz as f64 * n.z - d;
                     const EPSILON: f64 = 1e-8;
                     signs[index] = if height < -EPSILON {
                         -1 // Vertex was below the triangle
@@ -131,7 +131,7 @@ pub fn get_triangle_intersections(grid: &GridCollider, vertices: [(i32, i32, i32
                 let x2 = v2.0 * c2.1 - v2.1 * c2.0;
                 let proj_x_result = (x0 >= 0 && x1 >= 0 && x2 >= 0)||(x0 <= 0 && x1 <= 0 && x2 <= 0);
                 for ix in min_x..=max_x {
-                    let index = iz as usize + iy as usize * dvy + ix as usize * dvx;
+                    let index = (iz - min_z) as usize + (iy - min_y) as usize * dvy + (ix - min_x) as usize * dvx;
                     proj_x[index] = proj_x_result;
                 }
             }
@@ -153,7 +153,7 @@ pub fn get_triangle_intersections(grid: &GridCollider, vertices: [(i32, i32, i32
                 let x2 = v2.0 * c2.1 - v2.1 * c2.0;
                 let proj_y_result = (x0 >= 0 && x1 >= 0 && x2 >= 0)||(x0 <= 0 && x1 <= 0 && x2 <= 0);
                 for iy in min_y..=max_y {
-                    let index = iz as usize + iy as usize * dvy + ix as usize * dvx;
+                    let index = (iz - min_z) as usize + (iy - min_y) as usize * dvy + (ix - min_x) as usize * dvx;;
                     proj_y[index] = proj_y_result;
                 }
             }

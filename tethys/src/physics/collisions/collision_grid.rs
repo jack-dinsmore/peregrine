@@ -43,7 +43,7 @@ impl GridCollider {
     /// Returns a mutable reference to the actual grid entry corresponding to this position. None for null
     pub fn get_entry_mut(&mut self, x: i32, y: i32, z: i32) -> Option<&mut isize> {
         if x < -self.cx || y < -self.cy || z < -self.cz { return None; }
-        if x >=self.x as i32-self.cx || y >= self.z as i32-self.cz || z >= self.z as i32-self.cz { return None; }
+        if x >= self.x as i32-self.cx || y >= self.y as i32-self.cy || z >= self.z as i32-self.cz { return None; }
         let index = self.get_index(x, y, z);
         Some(&mut self.data[index as usize])
     }

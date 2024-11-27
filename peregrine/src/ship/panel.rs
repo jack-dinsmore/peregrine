@@ -1,4 +1,4 @@
-use cgmath::{Quaternion, Vector3};
+use cgmath::{InnerSpace, Quaternion, Vector3};
 use strum::FromRepr;
 use tethys::{graphics, prelude::*};
 
@@ -31,17 +31,27 @@ impl Panel {
             (self.vertices[2].1 - self.vertices[0].1) as f32,
             (self.vertices[2].2 - self.vertices[0].2) as f32
         );
-        let normal = v1.cross(v2);
-        let vertices = self.vertices.iter().map(|v| 
+        let normal = v1.cross(v2).normalize();
+        let mut up = Vector3::new(0., 0., 1.);
+        if up.dot(normal) > 0.99 {
+            up =  Vector3::new(1., 0., 0.);
+        }
+        let tangent_x = normal.cross(up).normalize();
+        let tangent_y = tangent_x.cross(normal);
+        let vertices = self.vertices.iter().map(|v| {
+            let offset = Vector3::new(
+                (v.0 - self.vertices[0].0) as f32,
+                (v.1 - self.vertices[0].1) as f32, 
+                (v.2 - self.vertices[0].2) as f32
+            );
             TexVertex {
                 position: [v.0 as f32, v.1 as f32, v.2 as f32],
-                tex_coords: [0., 0.],// TODO
+                tex_coords: [offset.dot(tangent_x), offset.dot(tangent_y)],// TODO
                 normal: [normal.x, normal.y, normal.z],
             }
-        ).collect::<Vec<_>>();
+        }).collect::<Vec<_>>();
         let indices = [0, 1, 2, 0, 2, 1];
         let model = Model::from_vertices(&loader.graphics, &vertices, &indices, material);
-        dbg!();
         Some(Object::new(&loader.graphics, model, Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.)))
     }
 }

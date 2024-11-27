@@ -1,5 +1,5 @@
 
-use std::ops::Add;
+use std::ops::{Add, Mul};
 
 use cgmath::{Quaternion, Vector3};
 use strum::FromRepr;
@@ -36,20 +36,20 @@ pub struct PartLayout {
 impl PartLayout {
     pub fn as_physical(&self) -> (Vector3<f64>, Quaternion<f64>) {
         (
-            Vector3::new(self.x as f64, self.y as f64, self.z as f64),
+            Vector3::new(self.x as f64 + 0.5, self.y as f64 + 0.5, self.z as f64 + 0.5),
             orientation::to_quat(self.orientation)
         )
     }
 }
-impl Add for PartLayout {
+impl Mul for PartLayout {
     type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (new_x, new_y, new_z) = orientation::rotate_integer(rhs.orientation, self.x, self.y, self.z);
         Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-            orientation: orientation::compose(self.orientation, rhs.orientation)
+            x: new_x + rhs.x,
+            y: new_y + rhs.y,
+            z: new_z + rhs.z,
+            orientation: orientation::compose(rhs.orientation, self.orientation)
         }
     }
 }
@@ -58,7 +58,7 @@ impl Add for PartLayout {
 #[derive(Clone, Copy, Debug)]
 pub enum Part {
     Tank { length: u32 },
-    Box { length: u32, width: u32, height: u32 },
+    Scaffold { length: u32, width: u32, height: u32 },
     FuelCell,
 }
 
@@ -74,7 +74,7 @@ impl Part {
                     y: 0,
                     z: z0,
                     orientation: 12
-                } + layout);
+                } * layout);
 
                 for i in 0..(*length as i32-2) {
                     output.push(PartLayout {
@@ -82,7 +82,7 @@ impl Part {
                         y: 0,
                         z: z0 + i+1,
                         orientation: 0
-                    } + layout);
+                    } * layout);
                 }
 
                 output.push(PartLayout {
@@ -90,7 +90,7 @@ impl Part {
                     y: 0,
                     z: z0 + *length as i32 - 1,
                     orientation: 0
-                } + layout);
+                } * layout);
             },
             Self::FuelCell => {
                 output.push(PartLayout {
@@ -98,9 +98,9 @@ impl Part {
                     y: 0,
                     z: 0,
                     orientation: 0
-                } + layout);
+                } * layout);
             }
-            Self::Box { length, width, height } => {
+            Self::Scaffold { length, width, height } => {
                 let x0 = (*length as i32) / -2;
                 let y0 = (*width as i32) / -2;
                 let z0 = (*height as i32) / -2;
@@ -112,7 +112,7 @@ impl Part {
                                 y: y0 + j as i32,
                                 z: z0 + k as i32,
                                 orientation: 0
-                            } + layout);
+                            } * layout);
                         }
                     }
                 }
@@ -148,11 +148,12 @@ impl Part {
                 }).collect::<Vec<_>>());
             },
             Self::FuelCell =>  default(PartModel::FuelCell),
-            Self::Box { .. } => default(PartModel::Box),
+            Self::Scaffold { .. } => default(PartModel::Scaffold),
         }
         output
     }
     
+    /// Returns the coordinates of the minimum and maximum corners
     pub(crate) fn get_bbox(&self, layout: PartLayout) -> (PartLayout, PartLayout) {
         let mut min_x = i32::MAX;
         let mut min_y = i32::MAX;
@@ -168,18 +169,16 @@ impl Part {
             max_y = max_y.max(block.y);
             max_z = max_z.max(block.z);
         }
-        let (min_x, min_y, min_z) = orientation::rotate_integer(layout.orientation, min_x, min_y, min_z);
-        let (max_x,max_y,max_z) = orientation::rotate_integer(layout.orientation, max_x,max_y,max_z);
         (
             PartLayout {
                 x: min_x,
-                y: min_y, 
+                y: min_y,
                 z: min_z,
                 orientation: 0,
             },
             PartLayout {
                 x: max_x,
-                y: max_y, 
+                y: max_y,
                 z: max_z,
                 orientation: 0,
             }
@@ -193,7 +192,7 @@ pub enum PartModel {
     Placement,
     TankCap,
     TankBody,
-    Box,
+    Scaffold,
     FuelCell,
 }
 
@@ -219,7 +218,7 @@ impl PartData {
                     PartModel::Placement => include_model!("placement"),
                     PartModel::TankCap => include_model!("tank-cap"),
                     PartModel::TankBody => include_model!("tank-body"),
-                    PartModel::Box => include_model!("box"),
+                    PartModel::Scaffold => include_model!("scaffold"),
                     PartModel::FuelCell => include_model!("fuel-cell"),
                 };
                 Model::new(graphics, loaded_obj)

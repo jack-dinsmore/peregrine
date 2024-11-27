@@ -35,8 +35,11 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = in.tex_coords;
-    out.normal = (model.rot_mat * vec4<f32>(in.normal, 1.)).xyz;
     out.world_position = model.world * vec4<f32>(in.position, 1.0);
+    out.normal = (model.rot_mat * vec4<f32>(in.normal, 1.)).xyz;
+    if dot(-out.world_position.xyz, out.normal) < 0. {
+        out.normal *= -1.;// Normal was backwards
+    }
     out.clip_position = camera.view_proj * out.world_position;
     return out;
 }

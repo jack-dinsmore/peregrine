@@ -8,7 +8,7 @@ mod ship;
 mod ui;
 mod util;
 
-use ship::{Panel, PanelModel, Part, PartData, PartLayout, ShipInterior};
+use ship::{Panel, PanelLayout, PanelModel, Part, PartData, PartLayout, ShipInterior};
 use ui::{FpsCounter, PlacePanelState, PlacePartState, UiMode};
 
 struct Peregrine<'a> {
@@ -63,12 +63,30 @@ impl<'a> App for Peregrine<'a> {
     fn initialize(&mut self) {
         let parts = vec![
             Part::Tank {length: 3},
-            Part::Box { length: 1, width: 1, height: 1},
+            Part::Tank {length: 3},
+            Part::Scaffold { length: 1, width: 1, height: 1},
+            Part::Scaffold { length: 1, width: 1, height: 1},
             // , Part::FuelCell
         ];
         let layout = vec![
+            PartLayout { x: 0, y: 1, z: 0, orientation: 8 },
+            PartLayout { x: 0, y: -1, z: 0, orientation: 8 },
             PartLayout { x: 0, y: 0, z: 0, orientation: 0 },
-            PartLayout { x: 1, y: 0, z: 0, orientation: 0 },
+            PartLayout { x: 0, y: 0, z: 1, orientation: 0 },
+        ];
+        let panels = vec![
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(0,1,2),(-1,1,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,1,1),(-1,0,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(-1,0,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(-1,1,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(2,2,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(2,-1,1)], },
+        ];
+        let layout = vec![
+            PartLayout { x: 0, y: 1, z: 0, orientation: 8 },
+            PartLayout { x: 0, y: -1, z: 0, orientation: 8 },
+            PartLayout { x: 0, y: 0, z: 0, orientation: 0 },
+            PartLayout { x: 0, y: 0, z: 1, orientation: 0 },
         ];
         let rigid_body = RigidBody {
             angvel: Quaternion::new(0., 0., 0., 0.0),
@@ -77,7 +95,7 @@ impl<'a> App for Peregrine<'a> {
         };
 
         let part_loader = self.part_data.get_loader(&self.graphics);
-        let ship = ShipInterior::new(part_loader.clone(), parts, layout, Vec::new(), Vec::new(), rigid_body);
+        let ship = ShipInterior::new(part_loader.clone(), parts, layout, panels.clone(), vec![PanelLayout{}; panels.len()], rigid_body);
         // self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
         self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);

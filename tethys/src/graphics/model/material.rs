@@ -32,7 +32,7 @@ impl Material {
         let diffuse_info = if !material.diffuse_texture.is_empty() {
             Some(make_texture(
                 graphics, &material.diffuse_texture,
-                wgpu::AddressMode::ClampToEdge
+                wgpu::AddressMode::MirrorRepeat
             ).unwrap())
         } else {
             None

@@ -18,13 +18,9 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 * Ship exteriors
 * Better metal shader
 
-### Collisions
-* Make a special collider for a grid of boxes
-* Use this to determine the placement of new parts
-* Use this to make a panel insertion utility
-
 ### Aesthetics
-* Make the placement lines actual lines drawn by the shader
+* Make the placement lines actual lines drawn by the shader and get rid of the placement texture
+* UI to select which blocks to place and how to turn off placement
 * Thrusters model
 
 ### Wiring
