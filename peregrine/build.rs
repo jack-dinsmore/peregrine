@@ -7,6 +7,7 @@ fn main() {
     LoadModel::load_obj("assets/parts/tank-cap.obj").save();
     LoadModel::load_obj("assets/parts/tank-body.obj").save();
     LoadModel::load_obj("assets/parts/scaffold.obj").save();
+    LoadModel::load_obj("assets/parts/thruster.obj").save();
 
     LoadMaterial::load_mtl("assets/panels/metal.mtl").save();
 }

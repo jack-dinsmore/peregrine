@@ -1,5 +1,6 @@
 use cgmath::{Quaternion, Rotation, Vector3};
 use part::{Block, PartModel};
+use serde::{Deserialize, Serialize};
 use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
 
 mod part;
@@ -11,6 +12,8 @@ pub use part::{Part, PartLayout,  PartData, PartLoader};
 pub use panel::{Panel, PanelModel, PanelLayout};
 pub use grid::*;
 
+use crate::util::Save;
+
 /// This is the maximum number of parts, because the panel index will start to take over from here
 const PANEL_START_INDEX: usize = 65536;
 
@@ -18,41 +21,43 @@ const PANEL_START_INDEX: usize = 65536;
 /// physics data, and its simulated properties
 pub struct ShipInterior {
     parts: Vec<Part>,
-    part_objects: Vec<Block>,
     part_layouts: Vec<PartLayout>,
-
     pub panels: Vec<Panel>,
-    panel_objects: Vec<Object>,
     panel_layouts: Vec<PanelLayout>,
 
+    // Physics
+    pub rigid_body: RigidBody,
     collider: Collider,
     placement_objects: Option<Vec<Object>>,
-    pub rigid_body: RigidBody,
+
+    // Graphics
+    panel_objects: Vec<Object>,
+    part_objects: Vec<Block>,
 }
 
 impl ShipInterior {
-    pub fn new(loader: PartLoader, parts: Vec<Part>, part_layouts: Vec<PartLayout>, panels: Vec<Panel>, panel_layouts: Vec<PanelLayout>, rigid_body: RigidBody) -> Self {
-        let mut part_objects = Vec::with_capacity(parts.len());
-        let mut panel_objects = Vec::with_capacity(panels.len());
+    pub fn new(loader: PartLoader, template: SaveShipInterior) -> Self {
+        let mut part_objects = Vec::with_capacity(template.parts.len());
+        let mut panel_objects = Vec::with_capacity(template.panels.len());
         let mut grid = GridCollider::new();
-        for (i, (part, layout)) in parts.iter().zip(&part_layouts).enumerate() {
+        for (i, (part, layout)) in template.parts.iter().zip(&template.part_layouts).enumerate() {
             part_objects.append(&mut part.get_objects(loader.clone(), *layout));
             add_part_to_grid(&mut grid, part, *layout, i);
         }
-        for (i, (panel, layout)) in panels.iter().zip(&panel_layouts).enumerate() {
+        for (i, (panel, layout)) in template.panels.iter().zip(&template.panel_layouts).enumerate() {
             if let Some(object) = panel.get_object(loader.clone(), *layout) {
                 panel_objects.push(object);
             }
             add_panel_to_grid(&mut grid, panel, (PANEL_START_INDEX + i) as isize);
         }
         Self {
-            parts,
-            part_layouts,
+            parts: template.parts,
+            part_layouts: template.part_layouts,
             collider: Collider::Grid(grid),
-            rigid_body,
+            rigid_body: template.rigid_body,
             placement_objects: None,
-            panels,
-            panel_layouts,
+            panels: template.panels,
+            panel_layouts: template.panel_layouts,
             part_objects,
             panel_objects,
         }
@@ -167,5 +172,21 @@ impl ShipInterior {
         }
         let grid = self.collider.get_grid_collider_mut().unwrap();
         add_panel_to_grid(grid, &panel, panel_index);
+    }
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct SaveShipInterior {
+    pub parts: Vec<Part>,
+    pub part_layouts: Vec<PartLayout>,
+    pub panels: Vec<Panel>,
+    pub panel_layouts: Vec<PanelLayout>,
+    pub rigid_body: RigidBody,
+}
+
+impl Save<ShipInterior, PartLoader<'_>> for SaveShipInterior {
+    fn build(self, loader: PartLoader) -> ShipInterior {
+        ShipInterior::new(loader, self)
     }
 }

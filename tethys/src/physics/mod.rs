@@ -1,15 +1,22 @@
 use cgmath::{InnerSpace, Quaternion, Rotation, Vector3, Zero};
+use serde::{Deserialize, Serialize};
 
 pub mod collisions;
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RigidBody {
+    #[serde(with = "serde_vector3")]
     pub pos: Vector3<f64>,
+    #[serde(with = "serde_quaternion")]
     pub orientation: Quaternion<f64>,
+    #[serde(with = "serde_vector3")]
     pub vel: Vector3<f64>,
+    #[serde(with = "serde_quaternion")]
     pub angvel: Quaternion<f64>,
+    #[serde(with = "serde_vector3")]
     pub force: Vector3<f64>,
+    #[serde(with = "serde_quaternion")]
     pub torque: Quaternion<f64>,
     pub mass: f64,
     pub moi: (f64, f64, f64),
@@ -64,5 +71,44 @@ impl Default for RigidBody {
             1.,
             (1., 1., 1.)
         )
+    }
+}
+
+mod serde_vector3 {
+    use cgmath::Vector3;
+    use serde::{Serialize, Deserialize, Serializer, Deserializer};
+
+    pub fn serialize<S>(v: &Vector3<f64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        [v.x, v.y, v.z].serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vector3<f64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let arr = <[f64; 3]>::deserialize(deserializer)?;
+        Ok(Vector3::new(arr[0], arr[1], arr[2]))
+    }
+}
+
+mod serde_quaternion {
+    use cgmath::Quaternion;
+    use serde::{Serialize, Deserialize, Serializer, Deserializer};
+    pub fn serialize<S>(q: &Quaternion<f64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        [q.s, q.v.x, q.v.y, q.v.z].serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Quaternion<f64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let arr = <[f64; 4]>::deserialize(deserializer)?;
+        Ok(Quaternion::new(arr[0], arr[1], arr[2], arr[3]))
     }
 }

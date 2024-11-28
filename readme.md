@@ -14,15 +14,18 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
+### Ship saving
+
 ### Wiring
-* Internal linking
-* Controls
+* Internal linking of power lines and controls
+* Control panels
+* Battery block
+* Computer block
 
 ### Ship aesthetics
 * Better metal shader
 * Make the placement lines actual lines drawn by the shader and get rid of the placement texture
 * UI to select which blocks to place and how to turn off placement
-* Thrusters model
 
 ### Planets
 * Terrain rendering
@@ -49,4 +52,4 @@ That concludes a release.
 * OBJ Objects
 * Use X forward, Z up
 * Select Write Normals, Include UVs, Write Materials, Triangulate Faces
-* Select Material Groups
+* Select Material Groups (obsolete)

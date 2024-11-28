@@ -1,7 +1,7 @@
 use cgmath::{InnerSpace, Quaternion, Rotation, Vector3};
 use tethys::prelude::*;
 
-use crate::ship::{orientation::{self, from_quat}, Part, PartLayout, PartLoader, ShipInterior};
+use crate::{ship::{orientation::{self, from_quat}, Part, PartLayout, PartLoader, SaveShipInterior, ShipInterior}, util::Save};
 
 const MAX_DISTANCE: f64 = 5.;
 
@@ -18,9 +18,16 @@ impl PlacePartState {
     pub fn new(part_loader: PartLoader, part: Part) -> Self {
         let rigid_body = RigidBody::default();
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
+        let save = SaveShipInterior {
+            parts: vec![part.clone()],
+            part_layouts: vec![layout.clone()],
+            panels: Vec::new(),
+            panel_layouts: Vec::new(),
+            rigid_body,
+        };
         Self {
-            part_orientation: from_quat(rigid_body.orientation),
-            interior:  ShipInterior::new(part_loader, vec![part.clone()], vec![layout], Vec::new(), Vec::new(), rigid_body),
+            part_orientation: from_quat(save.rigid_body.orientation),
+            interior:  save.build(part_loader),
             display: false,
             place_coord: Vector3::new(0., 0., 0.),
             part,

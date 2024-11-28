@@ -1,8 +1,9 @@
 use tethys::prelude::*;
-use crate::ship::{get_corner, PanelModel};
+use crate::ship::{get_corner, PanelModel, SaveShipInterior};
 
 const MAX_DISTANCE: f64 = 10.;
 use crate::ship::{Panel, PanelLayout, PartLoader, ShipInterior};
+use crate::util::Save;
 
 pub struct PlacePanelState {
     interior: ShipInterior,
@@ -21,8 +22,15 @@ impl PlacePanelState {
         let layout = PanelLayout {
             
         };
+        let save = SaveShipInterior {
+            parts: Vec::new(),
+            part_layouts: Vec::new(),
+            panels: vec![panel.clone()],
+            panel_layouts: vec![layout.clone()],
+            rigid_body,
+        };
         Self {
-            interior:  ShipInterior::new(loader, Vec::new(), Vec::new(), vec![panel.clone()], vec![layout], rigid_body),
+            interior:  save.build(loader),
             display: false,
             place_coords: Vec::new(),
             panel_layout: layout,

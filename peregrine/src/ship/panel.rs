@@ -1,17 +1,18 @@
 use cgmath::{InnerSpace, Quaternion, Vector3};
+use serde::{Deserialize, Serialize};
 use strum::FromRepr;
-use tethys::{graphics, prelude::*};
+use tethys::prelude::*;
 
 use super::PartLoader;
 
 
 #[repr(usize)]
-#[derive(Copy, Clone, Debug, FromRepr)]
+#[derive(Copy, Clone, Debug, FromRepr, Serialize, Deserialize)]
 pub enum PanelModel {
     Metal,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Panel {
     pub vertices: [(i32, i32, i32); 3],
     pub panel_model: PanelModel,
@@ -56,7 +57,7 @@ impl Panel {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug,  Serialize, Deserialize)]
 pub struct PanelLayout {
 
 }

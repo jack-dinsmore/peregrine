@@ -1,7 +1,8 @@
 
-use std::ops::{Add, Mul};
+use std::ops::Mul;
 
 use cgmath::{Quaternion, Vector3};
+use serde::{Deserialize, Serialize};
 use strum::FromRepr;
 use tethys::prelude::*;
 
@@ -26,7 +27,7 @@ impl Block {
 }
 
 /// The physical position of an entire part, or the blocks within a part
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct PartLayout {
     pub x: i32,
     pub y: i32,
@@ -55,10 +56,11 @@ impl Mul for PartLayout {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Part {
     Tank { length: u32 },
     Scaffold { length: u32, width: u32, height: u32 },
+    Thruster,
     FuelCell,
 }
 
@@ -66,6 +68,14 @@ impl Part {
     /// List all the blocks within a part
     pub(super) fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
         let mut output = Vec::new();
+        let mut default = || {
+            output.push(PartLayout {
+                x: 0,
+                y: 0,
+                z: 0,
+                orientation: 0
+            } * layout);
+        };
         match self {
             Self::Tank { length } => {
                 let z0 = -(*length as i32) / 2;
@@ -92,14 +102,7 @@ impl Part {
                     orientation: 0
                 } * layout);
             },
-            Self::FuelCell => {
-                output.push(PartLayout {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                    orientation: 0
-                } * layout);
-            }
+            Self::FuelCell => default(),
             Self::Scaffold { length, width, height } => {
                 let x0 = (*length as i32) / -2;
                 let y0 = (*width as i32) / -2;
@@ -117,6 +120,8 @@ impl Part {
                     }
                 }
             }
+            Part::Thruster => default(),
+
         }
         output
     }
@@ -148,6 +153,7 @@ impl Part {
                 }).collect::<Vec<_>>());
             },
             Self::FuelCell =>  default(PartModel::FuelCell),
+            Self::Thruster =>  default(PartModel::Thruster),
             Self::Scaffold { .. } => default(PartModel::Scaffold),
         }
         output
@@ -193,6 +199,7 @@ pub enum PartModel {
     TankCap,
     TankBody,
     Scaffold,
+    Thruster,
     FuelCell,
 }
 
@@ -220,6 +227,7 @@ impl PartData {
                     PartModel::TankBody => include_model!("tank-body"),
                     PartModel::Scaffold => include_model!("scaffold"),
                     PartModel::FuelCell => include_model!("fuel-cell"),
+                    PartModel::Thruster => include_model!("thruster"),
                 };
                 Model::new(graphics, loaded_obj)
             }),
