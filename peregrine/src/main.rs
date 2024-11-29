@@ -62,6 +62,7 @@ impl<'a> App for Peregrine<'a> {
     }
 
     fn initialize(&mut self) {
+        let part_loader = self.part_data.get_loader(&self.graphics);
         let parts = vec![
             Part::Tank {length: 3},
             Part::Tank {length: 3},
@@ -69,6 +70,7 @@ impl<'a> App for Peregrine<'a> {
             Part::Scaffold { length: 1, width: 1, height: 1},//TODO clean up
             Part::Thruster {},
             Part::Thruster {},
+            Part::Battery {},
             // , Part::FuelCell
         ];
         let layout = vec![
@@ -78,6 +80,7 @@ impl<'a> App for Peregrine<'a> {
             PartLayout { x: 0, y: 0, z: 1, orientation: 0 },
             PartLayout { x: -2, y: 1, z: 0, orientation: 8 },
             PartLayout { x: -2, y: -1, z: 0, orientation: 8 },
+            PartLayout { x: 2, y: 0, z: 0, orientation: 0 },
         ];
         let panels = vec![
             Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(0,1,2),(-1,1,1)], },
@@ -103,8 +106,6 @@ impl<'a> App for Peregrine<'a> {
             // orientation: Quaternion::new(0., 0., 0., 1.),
             ..Default::default()
         };
-
-        let part_loader = self.part_data.get_loader(&self.graphics);
         let save = SaveShipInterior {
             parts,
             part_layouts: layout,
@@ -257,3 +258,54 @@ fn main() {
         tethys::main::<Peregrine>();
     }
 }
+
+/* Ship block code
+let parts = vec![
+            Part::Tank {length: 3},
+            Part::Tank {length: 3},
+            Part::Scaffold { length: 1, width: 1, height: 1},
+            Part::Scaffold { length: 1, width: 1, height: 1},//TODO clean up
+            Part::Thruster {},
+            Part::Thruster {},
+            // , Part::FuelCell
+        ];
+        let layout = vec![
+            PartLayout { x: 0, y: 1, z: 0, orientation: 8 },
+            PartLayout { x: 0, y: -1, z: 0, orientation: 8 },
+            PartLayout { x: 0, y: 0, z: 0, orientation: 0 },
+            PartLayout { x: 0, y: 0, z: 1, orientation: 0 },
+            PartLayout { x: -2, y: 1, z: 0, orientation: 8 },
+            PartLayout { x: -2, y: -1, z: 0, orientation: 8 },
+        ];
+        let panels = vec![
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(0,1,2),(-1,1,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,1,1),(-1,0,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(-1,0,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(-1,1,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(3,2,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(3,-1,1)], },
+
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,0),(-1,2,0),(3,2,0)], },//Bottom
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,0),(3,2,0),(3,-1,0)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(-1,2,0),(-1,-1,0)], },//Back
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(-1,2,0),(-1,2,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(3,-1,1),(3,2,0),(3,-1,0)], },//Front
+            Panel {panel_model: PanelModel::Metal, vertices:[(3,-1,1),(3,2,0),(3,2,1)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,2,1),(3,2,0),(3,2,1)], },//Left
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,2,1),(3,2,0),(-1,2,0)], },
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(3,-1,0),(3,-1,1)], },//Right
+            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(3,-1,0),(-1,-1,0)], },
+        ];
+        let rigid_body = RigidBody {
+            angvel: Quaternion::new(0., 0., 0., 0.0),
+            // orientation: Quaternion::new(0., 0., 0., 1.),
+            ..Default::default()
+        };
+        let save = SaveShipInterior {
+            parts,
+            part_layouts: layout,
+            panels: panels.clone(),
+            panel_layouts: vec![PanelLayout{}; panels.len()],
+            rigid_body,
+        };
+ */

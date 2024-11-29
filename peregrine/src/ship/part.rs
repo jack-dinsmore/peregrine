@@ -62,6 +62,7 @@ pub enum Part {
     Scaffold { length: u32, width: u32, height: u32 },
     Thruster,
     FuelCell,
+    Battery,
 }
 
 impl Part {
@@ -102,7 +103,6 @@ impl Part {
                     orientation: 0
                 } * layout);
             },
-            Self::FuelCell => default(),
             Self::Scaffold { length, width, height } => {
                 let x0 = (*length as i32) / -2;
                 let y0 = (*width as i32) / -2;
@@ -121,7 +121,8 @@ impl Part {
                 }
             }
             Part::Thruster => default(),
-
+            Self::FuelCell => default(),
+            Self::Battery => default(),
         }
         output
     }
@@ -154,6 +155,7 @@ impl Part {
             },
             Self::FuelCell =>  default(PartModel::FuelCell),
             Self::Thruster =>  default(PartModel::Thruster),
+            Self::Battery =>  default(PartModel::Battery),
             Self::Scaffold { .. } => default(PartModel::Scaffold),
         }
         output
@@ -190,6 +192,17 @@ impl Part {
             }
         )
     }
+
+    /// Return power drawn in Watts (a negative number indicates draw, while a positive number is power generation). Returns None if object does not participate in the power system
+    pub fn typical_power_draw(&self) -> Option<f64> {
+        match self {
+            Part::Tank { .. } => None,
+            Part::Scaffold { .. } => None,
+            Part::Thruster => Some(-10.),
+            Part::FuelCell => Some(50.),
+            Part::Battery => Some(50.),
+        }
+    }
 }
 
 #[repr(usize)]
@@ -201,6 +214,7 @@ pub enum PartModel {
     Scaffold,
     Thruster,
     FuelCell,
+    Battery,
 }
 
 
@@ -228,6 +242,7 @@ impl PartData {
                     PartModel::Scaffold => include_model!("scaffold"),
                     PartModel::FuelCell => include_model!("fuel-cell"),
                     PartModel::Thruster => include_model!("thruster"),
+                    PartModel::Battery => include_model!("battery"),
                 };
                 Model::new(graphics, loaded_obj)
             }),
