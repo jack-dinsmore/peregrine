@@ -3,7 +3,9 @@ mod loading;
 mod mesh;
 mod material;
 
-use crate::prelude::TexVertex;
+use std::sync::Arc;
+
+use crate::graphics::primitives::*;
 
 use super::Graphics;
 use container::{Container, Loader, MaybeInstanced};
@@ -17,10 +19,10 @@ pub type ModelContainer<const CAPACITY: usize> = Container<CAPACITY, (Vec<Mesh>,
 pub type ModelLoader<'a, const CAPACITY: usize> = Loader<'a, CAPACITY, (Vec<Mesh>, Vec<Material>)>;
 
 impl Model {
-    pub fn new(graphics: &Graphics, obj: LoadModel) -> Model {
+    pub fn from_obj(graphics: &Graphics, obj: LoadModel) -> Model {
         let mut meshes = Vec::with_capacity(obj.meshes.len());
         for load_mesh in &obj.meshes {
-            meshes.push(Mesh::new(graphics, load_mesh));
+            meshes.push(Mesh::from_obj(graphics, load_mesh));
         }
 
         let mut materials = Vec::with_capacity(obj.materials.len());
@@ -28,13 +30,20 @@ impl Model {
             materials.push(Material::new(graphics, load_material));
         }
 
-        Model::Singleton((meshes, materials))
+        Model::Singleton(Arc::new((meshes, materials)))
     }
 
-    pub fn from_vertices(graphics: &Graphics, vertices: &[TexVertex], indices: &[u16], material: Material) -> Model {
+    /// Generate a model that uses one material
+    pub fn from_vertices_and_material<V: Vertex>(graphics: &Graphics, vertices: &[V], indices: &[u16], material: Material) -> Model {
         let meshes = vec![Mesh::from_vertices(graphics, vertices, indices, 0)];
         let materials = vec![material];
-        Model::Singleton((meshes, materials))
+        Model::Singleton(Arc::new((meshes, materials)))
+    }
+
+    /// Generate a model that uses no materials
+    pub fn from_vertices<V: Vertex>(graphics: &Graphics, vertices: &[V], indices: &[u16]) -> Model {
+        let meshes = vec![Mesh::from_vertices(graphics, vertices, indices, 0)];
+        Model::Singleton(Arc::new((meshes, Vec::new())))
     }
 
     /// Get an identifier for this model for the sake of sorting the models

@@ -52,7 +52,7 @@ impl Panel {
             }
         }).collect::<Vec<_>>();
         let indices = [0, 1, 2, 0, 2, 1];
-        let model = Model::from_vertices(&loader.graphics, &vertices, &indices, material);
+        let model = Model::from_vertices_and_material(&loader.graphics, &vertices, &indices, material);
         Some(Object::new(&loader.graphics, model, Vector3::new(0., 0., 0.), Quaternion::new(1., 0., 0., 0.)))
     }
 }

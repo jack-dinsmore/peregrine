@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use crate::prelude::TexVertex;
+use crate::graphics::primitives::{Vertex, TexVertex};
 
 use super::super::Graphics;
 use super::loading::LoadMesh;
@@ -13,7 +13,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub(super) fn new(graphics: &Graphics, mesh: &LoadMesh) -> Self {
+    pub(super) fn from_obj(graphics: &Graphics, mesh: &LoadMesh) -> Self {
         let mut vertices = Vec::with_capacity(mesh.positions.len());
         let n_triangles = mesh.positions.len()/3;
 
@@ -40,7 +40,7 @@ impl Mesh {
         Self::from_vertices(graphics, &vertices, &indices, mesh.material_id)
     }
 
-    pub(super) fn from_vertices(graphics: &Graphics, vertices: &[TexVertex], indices: &[u16], material_index: usize) -> Mesh {
+    pub(super) fn from_vertices<V: Vertex>(graphics: &Graphics, vertices: &[V], indices: &[u16], material_index: usize) -> Mesh {
         let vertex_buffer = graphics.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: Some("TexVertex Buffer"),

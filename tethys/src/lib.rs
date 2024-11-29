@@ -9,7 +9,7 @@ pub mod prelude {
     pub use crate::io::mouse::Mouse;
     pub use crate::graphics::{Graphics, RenderPass};
     pub use crate::graphics::model::{Model, ModelContainer, ModelLoader, Material, MaterialContainer, MaterialLoader, LoadModel, LoadMaterial};
-    pub use crate::graphics::shader::{Shader, ShaderBinding};
+    pub use crate::graphics::shader::{Shader, ShaderBuilder, ShaderBinding};
     pub use crate::graphics::camera::Camera;
     pub use crate::graphics::object::{Object, ObjectHandle};
     pub use crate::graphics::primitives::*;

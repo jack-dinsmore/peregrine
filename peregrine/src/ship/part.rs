@@ -208,7 +208,6 @@ impl Part {
 #[repr(usize)]
 #[derive(Clone, Copy, Debug, FromRepr)]
 pub enum PartModel {
-    Placement,
     TankCap,
     TankBody,
     Scaffold,
@@ -236,7 +235,6 @@ impl PartData {
             model_loader: self.model_container.loader(|index| {
                 let part = PartModel::from_repr(index).unwrap();
                 let loaded_obj = match part {
-                    PartModel::Placement => include_model!("placement"),
                     PartModel::TankCap => include_model!("tank-cap"),
                     PartModel::TankBody => include_model!("tank-body"),
                     PartModel::Scaffold => include_model!("scaffold"),
@@ -244,7 +242,7 @@ impl PartData {
                     PartModel::Thruster => include_model!("thruster"),
                     PartModel::Battery => include_model!("battery"),
                 };
-                Model::new(graphics, loaded_obj)
+                Model::from_obj(graphics, loaded_obj)
             }),
             material_loader: self.material_container.loader(|index| {
                 let panel = PanelModel::from_repr(index).unwrap();

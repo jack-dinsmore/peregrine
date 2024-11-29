@@ -153,7 +153,7 @@ pub fn get_triangle_intersections(grid: &GridCollider, vertices: [(i32, i32, i32
                 let x2 = v2.0 * c2.1 - v2.1 * c2.0;
                 let proj_y_result = (x0 >= 0 && x1 >= 0 && x2 >= 0)||(x0 <= 0 && x1 <= 0 && x2 <= 0);
                 for iy in min_y..=max_y {
-                    let index = (iz - min_z) as usize + (iy - min_y) as usize * dvy + (ix - min_x) as usize * dvx;;
+                    let index = (iz - min_z) as usize + (iy - min_y) as usize * dvy + (ix - min_x) as usize * dvx;
                     proj_y[index] = proj_y_result;
                 }
             }

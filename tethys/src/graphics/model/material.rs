@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use wgpu::util::DeviceExt;
 
@@ -96,7 +98,7 @@ impl Material {
             }
         );
 
-        Self::Singleton(bind_group)
+        Self::Singleton(Arc::new(bind_group))
     }
 }
 

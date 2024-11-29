@@ -30,18 +30,18 @@ impl<'a> App for Peregrine<'a> {
     fn new(graphics: Graphics) -> impl App {
         std::env::set_var("RUST_LOG", "warn");
         env_logger::init();
-        let shader_3d = Shader::new::<TexVertex>(&graphics, include_str!("shaders/shader_3d.wgsl"), &[
+        let shader_3d = ShaderBuilder::<TexVertex>::new(include_str!("shaders/shader_3d.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
             ShaderBinding::NoisyTexture,
-        ]);
-        let shader_placement = Shader::new::<TexVertex>(&graphics, include_str!("shaders/shader_placement.wgsl"), &[
+        ]).build(&graphics);
+        let shader_placement = ShaderBuilder::<LineVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Model,
-        ]);
-        let shader_2d = Shader::new::<ScreenVertex>(&graphics, include_str!("shaders/shader_2d.wgsl"), &[
+        ]).set_primitive(Primitive::Line).build(&graphics);
+        let shader_2d = ShaderBuilder::<ScreenVertex>::new(include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
-        ]);
+        ]).build(&graphics);
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let part_data = PartData::new();
     
@@ -114,7 +114,7 @@ impl<'a> App for Peregrine<'a> {
             rigid_body,
         };
         let ship = save.build(part_loader.clone());
-        // self.ui_mode = UiMode::PlacePart(PlacePartState::new(part_loader, Part::Tank { length: 3 }));
+        self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }));
         // self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);
     }

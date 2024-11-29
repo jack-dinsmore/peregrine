@@ -1,13 +1,80 @@
+use std::marker::PhantomData;
+
+use crate::graphics::primitives::Primitive;
+
 use super::{primitives::Vertex, Graphics};
 
 pub enum ShaderBinding {
-    /// Shader requires a camera (the camera UBO will be loaded)
+    /** # Camera shader binding
+    This binding loads the camera UBO at group 0, binding 0, which has type 
+    ```
+    struct CameraUniform {
+        view_proj: mat4x4<f32>,
+        light_pos: vec4<f32>,
+    };
+    ```
+    and should be bound with 
+    ```
+    @group(0) @binding(0)
+    var<uniform> camera: CameraUniform;
+    ```
+    */
     Camera,
-    /// Shader requires a model (the model vertices will be loaded)
+    /** # Model shader binding
+    This binding loads the model UBO at group 1, binding 0, which has type 
+    ```
+    struct CameraUniform {
+        world: mat4x4<f32>,
+        rot_mat: mat4x4<f32>,
+    };
+    ```
+    and should be bound with 
+    ```
+    @group(1) @binding(0)
+    var<uniform> model: ModelUniform;
+    ```
+    */
     Model,
-    /// Shader requires a texture
+    /** # Texture shader binding
+    This binding loads the texture and its sampler for the fragment shader. Include them in the vertex shader using
+    ```
+    @group(2) @binding(0)
+    var t_diffuse: texture_2d<f32>;
+    @group(2) @binding(1)
+    var s_diffuse: sampler;
+    @group(2) @binding(2)
+    var<uniform> material: MaterialUniform;
+    ```
+    where `MaterialUniform` stores light information
+    ```
+    struct MaterialUniform {
+        light_info: vec4<f32>
+    };
+    ```
+    */
     Texture,
-    /// Shader requires a texture with a noise map
+    /** # Noisy Texture shader binding
+    A noisy texture has two textures bound, nominally the first for the texture of the model and the second for a bump map,
+    although it can be used for other purposes. Bind them like this:
+    ```
+    @group(2) @binding(0)
+    var t_diffuse: texture_2d<f32>;
+    @group(2) @binding(1)
+    var s_diffuse: sampler;
+    @group(2) @binding(2)
+    var t_normal: texture_2d<f32>;
+    @group(2) @binding(3)
+    var s_normal: sampler;
+    @group(2) @binding(4)
+    var<uniform> material: MaterialUniform;
+    ```
+    where `MaterialUniform` stores light information
+    ```
+    struct MaterialUniform {
+        light_info: vec4<f32>
+    };
+    ```
+    */
     NoisyTexture,
 }
 
@@ -123,14 +190,58 @@ pub struct Shader {
     pub(crate) render_pipeline: wgpu::RenderPipeline,
 }
 
-impl Shader {
-    pub fn new<V: Vertex>(graphics: &Graphics, code: &str, bindings: &[ShaderBinding]) -> Self {
+/**
+Remember to start your vertex shader with 
+```
+@vertex
+fn vs_main(in: VertexInput) -> VertexOutput {
+
+}
+```
+and similarly for the fragment shader after properly defining your `VertexInput` and `VertexOutput`
+structs. For example,
+```
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) tex_coords: vec2<f32>,
+    @location(2) normal: vec3<f32>,
+}
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) tex_coords: vec2<f32>,
+    @location(1) world_position: vec4<f32>,
+    @location(2) normal: vec3<f32>,
+}```
+ */
+pub struct ShaderBuilder<'a, V: Vertex> {
+    code: &'a str,
+    bindings: &'a [ShaderBinding],
+    primitive: Primitive,
+    phantom_data: PhantomData<V>,
+}
+impl<'a, V: Vertex> ShaderBuilder<'a, V> {
+    pub fn new(code: &'a str, bindings: &'a [ShaderBinding]) -> Self {
+        Self {
+            code,
+            bindings,
+            primitive: Primitive::Triangle,
+            phantom_data: PhantomData::<V>,
+        }
+    }
+
+    /// Sets the primitive type (e.g., triangles, lines, etc.) The type of primitive has no effect on the shader code.
+    pub fn set_primitive(mut self, primitive: Primitive) -> Self {
+        self.primitive = primitive;
+        self
+    }
+
+    pub fn build(self, graphics: &Graphics) -> Shader {
         let shader = graphics.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(code.into()),
+            source: wgpu::ShaderSource::Wgsl(self.code.into()),
         });
 
-        let bind_group_layouts = bindings.iter().map(|binding| binding.get_bind_group_layout(graphics)).collect::<Vec<_>>();
+        let bind_group_layouts = self.bindings.iter().map(|binding| binding.get_bind_group_layout(graphics)).collect::<Vec<_>>();
         let ptr_bind_group_layouts = bind_group_layouts.iter().map(|a| a).collect::<Vec<_>>();
 
         let render_pipeline_layout = graphics.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -161,7 +272,7 @@ impl Shader {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: self.primitive.to_topology(),
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
@@ -188,7 +299,7 @@ impl Shader {
             cache: None,
         });
 
-        Self {
+        Shader {
             render_pipeline,
         }
     }

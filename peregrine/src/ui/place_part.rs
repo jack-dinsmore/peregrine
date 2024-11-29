@@ -75,7 +75,6 @@ impl PlacePartState {
         );
         let result = Collider::check_intersection(closest_ship.collider_package(), (&line).into());
         if !result.collision() { return; }
-        dbg!(result.positions[0]);
 
         // Check to see if the part can be placed
         let mut pos_in_grid = closest_ship.rigid_body.to_local(result.positions[0] - forward * 0.001) - self.place_coord;

@@ -1,8 +1,7 @@
-use std::{alloc::Layout, borrow::Borrow, rc::Rc, sync::Mutex};
+use std::{alloc::Layout, borrow::Borrow, rc::Rc, sync::{Arc, Mutex}};
 
-#[allow(private_interfaces)]
 pub enum MaybeInstanced<T> {
-    Singleton(T),
+    Singleton(Arc<T>),
     Instance(Instance<T>),
 }
 
@@ -12,10 +11,10 @@ pub struct Container<const CAPACITY: usize, T> {
     mutexes: [Mutex<u8>; CAPACITY],
 }
 
-pub(crate) struct Instance<T> {
+pub struct Instance<T> {
     data: *const T,
-    counter: *mut u32,
-    mutex: *const Mutex<u8>,
+    counter: Option<*mut u32>,
+    mutex: Option<*const Mutex<u8>>,
 }
 
 pub struct Loader<'a, const CAPACITY: usize, T> {
@@ -26,16 +25,17 @@ pub struct Loader<'a, const CAPACITY: usize, T> {
 impl<T> MaybeInstanced<T> {
     pub fn inner(&self) -> &T {
         match self {
-            MaybeInstanced::Singleton(t) => &t,
+            MaybeInstanced::Singleton(t) => t.as_ref(),
             MaybeInstanced::Instance(t) => t.as_ref(),
         }
     }
 }
+
 impl<T> Clone for MaybeInstanced<T> {
     fn clone(&self) -> Self {
         match self {
-            Self::Singleton(_) => panic!("You must not clone a singleton model"),
-            Self::Instance(instance) => Self::Instance(instance.clone()),
+            Self::Singleton(arg0) => Self::Singleton(arg0.clone()),
+            Self::Instance(arg0) => Self::Instance(arg0.clone()),
         }
     }
 }
@@ -60,22 +60,26 @@ impl<T> Instance<T> {
 }
 impl<T> Drop for Instance<T> {
     fn drop(&mut self) {
-        unsafe {
-            (*self.counter) -= 1;
-
-            // Drop the data
-            if *self.counter == 0 {
-                std::ptr::drop_in_place(self.data as *mut u8);
-                std::alloc::dealloc(self.data as *mut u8, Layout::new::<T>());
+        if let Some(counter) = self.counter {
+            unsafe {
+                *counter -= 1;
+    
+                // Drop the data
+                if *counter == 0 {
+                    std::ptr::drop_in_place(self.data as *mut u8);
+                    std::alloc::dealloc(self.data as *mut u8, Layout::new::<T>());
+                }
             }
         }
     }
 }
 impl<T> Clone for Instance<T> {
     fn clone(&self) -> Self {
-        unsafe {
-            let _lock = (*self.mutex).lock();
-            *self.counter += 1;
+        if let Some(counter) = self.counter {
+            unsafe {
+                let _lock = (*self.mutex.unwrap()).lock();
+                *counter += 1;
+            }
         }
         Self {
             data: self.data.clone(),
@@ -107,7 +111,7 @@ impl<const CAPACITY: usize, T> Container<CAPACITY, T> {
             let self_ptr = self as *const Self as *mut Self;
             if self.counters[index] == 0 {
                 let model = match load_function(index) {
-                    MaybeInstanced::Singleton(data) => Box::new(data),
+                    MaybeInstanced::Singleton(data) => Box::new(Arc::try_unwrap(data).unwrap_or_else(|_| panic!("Your load function must return objects which are not borrowed by anyone else"))),
                     MaybeInstanced::Instance(_) => panic!("Your ModelContainer load_function must return singletons only")
                 };
                 unsafe {
@@ -120,8 +124,8 @@ impl<const CAPACITY: usize, T> Container<CAPACITY, T> {
         }
         MaybeInstanced::Instance(Instance {
             data: self.data[index],
-            mutex: &self.mutexes[index] as *const Mutex<u8>,
-            counter: &self.counters[index] as *const u32 as *mut u32,
+            mutex: Some(&self.mutexes[index] as *const Mutex<u8>),
+            counter: Some(&self.counters[index] as *const u32 as *mut u32),
         })
     }
 }

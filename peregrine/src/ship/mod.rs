@@ -1,5 +1,5 @@
 use cgmath::{Quaternion, Rotation, Vector3};
-use part::{Block, PartModel};
+use part::Block;
 use serde::{Deserialize, Serialize};
 use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
 
@@ -29,6 +29,7 @@ pub struct ShipInterior {
     pub rigid_body: RigidBody,
     collider: Collider,
     placement_objects: Option<Vec<Object>>,
+    placement_model: Option<Model>,
 
     // Graphics
     panel_objects: Vec<Object>,
@@ -60,6 +61,7 @@ impl ShipInterior {
             panel_layouts: template.panel_layouts,
             part_objects,
             panel_objects,
+            placement_model: None,
         }
     }
 
@@ -101,9 +103,25 @@ impl ShipInterior {
 
     /// Get the ship ready for placing parts
     pub fn initialize_placement(&mut self, part_loader: PartLoader) {
+        const PLACEMENT_VERTICES: [LineVertex; 8] = [
+            LineVertex{ position: [0.5, 0.5, 0.5] },
+            LineVertex{ position: [-0.5, 0.5, 0.5] },
+            LineVertex{ position: [0.5, -0.5, 0.5] },
+            LineVertex{ position: [-0.5, -0.5, 0.5] },
+            LineVertex{ position: [0.5, 0.5, -0.5] },
+            LineVertex{ position: [-0.5, 0.5, -0.5] },
+            LineVertex{ position: [0.5, -0.5, -0.5] },
+            LineVertex{ position: [-0.5, -0.5, -0.5] },
+        ];
+        const PLACEMENT_INDICES: [u16; 24] = [
+            0, 1, 1, 3, 3, 2, 2, 0,
+            4, 5, 5, 7, 7, 6, 6, 4,
+            0, 4, 1, 5, 2, 6, 3, 7,
+        ];
+        self.placement_model = Some(Model::from_vertices(&part_loader.graphics, &PLACEMENT_VERTICES, &PLACEMENT_INDICES));
+        let placement_model = self.placement_model.as_ref().unwrap();
         if self.placement_objects.is_none() {
             let mut objects = Vec::new();
-            let placement_model = part_loader.load_part(PartModel::Placement);
             let orientation = Quaternion::new(1., 0., 0., 0.,);
             for ((x, y, z), part_number) in self.collider.get_grid_collider().unwrap().indexed_iter() {
                 if part_number == -1 {continue;}
@@ -152,9 +170,10 @@ impl ShipInterior {
         let mut objects = part.get_objects(part_loader.clone(), layout);
         self.part_objects.append(&mut objects);
         add_part_to_grid(self.collider.get_grid_collider_mut().unwrap(), &part, layout, part_index);
+        let placement_model = self.placement_model.as_ref().unwrap();
         
         if let Some(objects) = &mut self.placement_objects {
-            let placement_model = part_loader.load_part(PartModel::Placement);
+            // let placement_model = part_loader.load_part(PartModel::Placement);
             let orientation = Quaternion::new(1., 0., 0., 0.,);
             for block in part.get_blocks(layout) {
                 let pos = Vector3::new(block.x as f64, block.y as f64, block.z as f64);
