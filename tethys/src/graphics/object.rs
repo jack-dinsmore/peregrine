@@ -7,7 +7,7 @@ pub struct Object {
     pub(crate) model: Model,
     pub position: Vector3<f64>,
     pub orientation: Quaternion<f64>,
-    pub(crate) model_buffer: wgpu::Buffer,
+    pub(crate) object_buffer: wgpu::Buffer,
     pub(crate) bind_group: wgpu::BindGroup,
 }
 
@@ -38,20 +38,20 @@ impl Object {
             rot: Matrix4::identity().into(),
         };
 
-        let model_buffer = graphics.device.create_buffer_init(
+        let object_buffer = graphics.device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("Model Buffer"),
+                label: Some("Object Buffer"),
                 contents: bytemuck::cast_slice(&[uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }
         );
 
         let bind_group = graphics.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &ShaderBinding::Model.get_bind_group_layout(graphics),
+            layout: &ShaderBinding::Object.get_bind_group_layout(graphics),
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: model_buffer.as_entire_binding(),
+                    resource: object_buffer.as_entire_binding(),
                 }
             ],
             label: Some("object_bind_group"),
@@ -61,7 +61,7 @@ impl Object {
             model,
             position,
             orientation,
-            model_buffer,
+            object_buffer,
             bind_group,
         }
     }
@@ -89,6 +89,6 @@ impl Object {
 
     pub(crate) fn update(&self, graphics: &Graphics, camera: &Camera) {
         let uniform = self.get_uniform(camera);
-        graphics.queue.write_buffer(&self.model_buffer, 0, bytemuck::cast_slice(&[uniform]))
+        graphics.queue.write_buffer(&self.object_buffer, 0, bytemuck::cast_slice(&[uniform]))
     }
 }

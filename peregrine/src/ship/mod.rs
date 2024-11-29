@@ -6,11 +6,13 @@ use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
 mod part;
 mod panel;
 mod grid;
+mod circuit;
 pub mod orientation;
 
 pub use part::{Part, PartLayout,  PartData, PartLoader};
 pub use panel::{Panel, PanelModel, PanelLayout};
 pub use grid::*;
+pub use circuit::{Circuit, Fluid};
 
 use crate::util::Save;
 
@@ -99,6 +101,21 @@ impl ShipInterior {
     /// Get the list of objects to be painted with the ``placing`` texture
     pub fn get_placement_objects(&self) -> Vec<ObjectHandle> {
         self.placement_objects.as_ref().unwrap().iter().map(|o| ObjectHandle::Ref(&o)).collect::<Vec<_>>()
+    }
+    
+    pub(crate) fn get_connected_objects(&self, fluid: Fluid) -> Vec<ObjectHandle> {
+        let mut objects = Vec::new();
+        let line_model = self.line_model.as_ref().unwrap();
+        for circuit in &self.circuits {
+            if circuit.fluid != fluid {continue};
+            for connection in &circuit.connections {
+                let start = [self.part_layouts[connection.0].x, self.part_layouts[connection.0].y, self.part_layouts[connection.0].z];
+                let stop = [self.part_layouts[connection.1].x, self.part_layouts[connection.1].y, self.part_layouts[connection.1].z];
+                objects.push(Object::new(part_loader.graphics, line_model.clone(), pos, orientation));
+
+            }
+        }
+        objects
     }
 
     /// Get the ship ready for placing parts

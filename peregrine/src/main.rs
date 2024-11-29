@@ -32,12 +32,12 @@ impl<'a> App for Peregrine<'a> {
         env_logger::init();
         let shader_3d = ShaderBuilder::<TexVertex>::new(include_str!("shaders/shader_3d.wgsl"), &[
             ShaderBinding::Camera,
-            ShaderBinding::Model,
+            ShaderBinding::Object,
             ShaderBinding::NoisyTexture,
         ]).build(&graphics);
         let shader_placement = ShaderBuilder::<LineVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
             ShaderBinding::Camera,
-            ShaderBinding::Model,
+            ShaderBinding::Object,
         ]).set_primitive(Primitive::Line).build(&graphics);
         let shader_2d = ShaderBuilder::<ScreenVertex>::new(include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
@@ -139,6 +139,7 @@ impl<'a> App for Peregrine<'a> {
                 }
             },
             UiMode::Flying => (),
+            UiMode::Connections(_) => (),
         };
 
         self.graphics.set_mouse_pos((self.graphics.size.0/2, self.graphics.size.1/2));
@@ -202,6 +203,7 @@ impl<'a> App for Peregrine<'a> {
                 }
             },
             UiMode::Flying => (),
+            UiMode::Connections(_) => todo!(),
         }
     }
 
@@ -221,14 +223,28 @@ impl<'a> App for Peregrine<'a> {
             render_pass.render(ship.objects());
         }
 
-        self.ui_mode.render(&mut render_pass);
-
-        // Placement
-        if self.ui_mode.is_placement() {
-            render_pass.set_shader(&self.shader_placement);
-            if let Some(ship) = &self.ship {
-                render_pass.render(ship.get_placement_objects());
-            }
+        match self.ui_mode {
+            UiMode::Flying => (),
+            UiMode::PlacePart(_) => {
+                // Placement
+                render_pass.set_shader(&self.shader_placement);
+                if let Some(ship) = &self.ship {
+                    render_pass.render(ship.get_placement_objects());
+                }
+            },
+            UiMode::PlacePanel(_) => {
+                // Placement
+                render_pass.set_shader(&self.shader_placement);
+                if let Some(ship) = &self.ship {
+                    render_pass.render(ship.get_placement_objects());
+                }
+            },
+            UiMode::Connections(state) => {
+                render_pass.set_shader(&self.shader_ui);
+                if let Some(ship) = &self.ship {
+                    render_pass.render(ship.get_connected_objects(state.fluid));
+                }
+            },
         }
 
         // 2D

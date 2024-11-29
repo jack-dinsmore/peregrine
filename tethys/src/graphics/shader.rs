@@ -20,10 +20,10 @@ pub enum ShaderBinding {
     ```
     */
     Camera,
-    /** # Model shader binding
+    /** # Object shader binding
     This binding loads the model UBO at group 1, binding 0, which has type 
     ```
-    struct CameraUniform {
+    struct ObjectUniform {
         world: mat4x4<f32>,
         rot_mat: mat4x4<f32>,
     };
@@ -31,10 +31,10 @@ pub enum ShaderBinding {
     and should be bound with 
     ```
     @group(1) @binding(0)
-    var<uniform> model: ModelUniform;
+    var<uniform> model: ObjectUniform;
     ```
     */
-    Model,
+    Object,
     /** # Texture shader binding
     This binding loads the texture and its sampler for the fragment shader. Include them in the vertex shader using
     ```
@@ -93,7 +93,7 @@ impl ShaderBinding {
                     count: None,
                 }
             ],
-            ShaderBinding::Model => vec![
+            ShaderBinding::Object => vec![
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,

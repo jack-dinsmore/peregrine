@@ -14,17 +14,13 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
-### Ship saving
-
 ### Wiring
 * Internal linking of power lines and controls
 * Control panels
-* Battery block
 * Computer block
 
 ### Ship aesthetics
 * Better metal shader
-* Make the placement lines actual lines drawn by the shader and get rid of the placement texture
 * UI to select which blocks to place and how to turn off placement
 
 ### Planets
@@ -42,9 +38,6 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 * UI for ship design at a hangar bay
 
 That concludes a release.
-
-## Optimizations
-* Modify the loading macro to only load each material once
 
 ## Instructions for exporting from blender
 * Use Wavefront format

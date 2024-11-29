@@ -88,7 +88,7 @@ impl Material {
             (Some(_), Some(_)) => &ShaderBinding::NoisyTexture.get_bind_group_layout(graphics),
             (Some(_), None) => &ShaderBinding::Texture.get_bind_group_layout(graphics),
             (None, Some(_)) => panic!("This material has a normal texture but no normal texture"),
-            (None, None) => &ShaderBinding::Model.get_bind_group_layout(graphics),
+            (None, None) => &ShaderBinding::Object.get_bind_group_layout(graphics),
         };
         let bind_group = graphics.device.create_bind_group(
             &wgpu::BindGroupDescriptor {
