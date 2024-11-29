@@ -59,11 +59,9 @@ impl<'a> RenderPass<'a> {
     fn render_models(&mut self) {
         for object in self.objects.drain(0..self.objects.len()) {
             let object = object.as_ref();
-            object.update(&self.graphics, self.camera.expect("You must set a camera"));
             self.render_pass.set_bind_group(1, &object.bind_group, &[]);
-            // It is guaranteed that the model is borrowed for longer than this function, so move the lifetime of data up to 'a
             let model_data = &object.model.inner();
-            for mesh in &model_data.0 {//TODO rearrange order
+            for mesh in &model_data.0 {//TODO rearrange orderm instances
                 if !self.global_material && model_data.1.len() > mesh.material_index {
                     self.render_pass.set_bind_group(2, &model_data.1[mesh.material_index].inner(), &[]);
                 }

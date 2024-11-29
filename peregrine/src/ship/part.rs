@@ -18,7 +18,7 @@ pub(super) struct Block {
 impl Block {
     fn new(graphics: &Graphics, model: Model, layout: PartLayout) -> Self {
         let (position, orientation) = layout.as_physical();
-        let object = Object::new(graphics, model, position, orientation);
+        let object = Object::zeroed::<ObjectUniform>(graphics, model);
         Self {
             object,
             layout,
@@ -67,7 +67,7 @@ pub enum Part {
 
 impl Part {
     /// List all the blocks within a part
-    pub(super) fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
+    pub fn get_blocks(&self, layout: PartLayout) -> Vec<PartLayout> {
         let mut output = Vec::new();
         let mut default = || {
             output.push(PartLayout {

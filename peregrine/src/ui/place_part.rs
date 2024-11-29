@@ -6,16 +6,22 @@ use crate::{ship::{orientation::{self, from_quat}, Part, PartLayout, PartLoader,
 const MAX_DISTANCE: f64 = 5.;
 
 pub struct PlacePartState {
+    // Part information
     interior: ShipInterior,
     part: Part,
     display: bool,
     place_coord: Vector3<f64>,// The coordinate on interior that should go where the mouse is
     part_orientation: u8, // Orientation the part would have
     layout: Option<PartLayout>,
+
+    // Placement information
+    placement_model: Model,
+    placement_objects: Vec<Object>,
 }
 
 impl PlacePartState {
-    pub fn new(part_loader: PartLoader, part: Part) -> Self {
+    pub fn new(part_loader: PartLoader, part: Part, ship: &ShipInterior) -> Self {
+        // Initialize the new part
         let rigid_body = RigidBody::default();
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
         let save = SaveShipInterior {
@@ -25,6 +31,30 @@ impl PlacePartState {
             panel_layouts: Vec::new(),
             rigid_body,
         };
+
+        // Initialize the placement blocks
+        const PLACEMENT_VERTICES: [PointVertex ; 8] = [
+            PointVertex { position: [0.5, 0.5, 0.5] },
+            PointVertex { position: [-0.5, 0.5, 0.5] },
+            PointVertex { position: [0.5, -0.5, 0.5] },
+            PointVertex { position: [-0.5, -0.5, 0.5] },
+            PointVertex { position: [0.5, 0.5, -0.5] },
+            PointVertex { position: [-0.5, 0.5, -0.5] },
+            PointVertex { position: [0.5, -0.5, -0.5] },
+            PointVertex { position: [-0.5, -0.5, -0.5] },
+        ];
+        const PLACEMENT_INDICES: [u16; 24] = [
+            0, 1, 1, 3, 3, 2, 2, 0,
+            4, 5, 5, 7, 7, 6, 6, 4,
+            0, 4, 1, 5, 2, 6, 3, 7,
+        ];
+        let placement_model = Model::from_vertices(&part_loader.graphics, &PLACEMENT_VERTICES, &PLACEMENT_INDICES);
+        let mut placement_objects = Vec::new();
+        for (_, part_number) in ship.collider.get_grid_collider().unwrap().indexed_iter() {
+            if part_number == -1 {continue;}
+            placement_objects.push(Object::zeroed::<ObjectUniform>(part_loader.graphics, placement_model.clone()));
+        }
+
         Self {
             part_orientation: from_quat(save.rigid_body.orientation),
             interior:  save.build(part_loader),
@@ -32,6 +62,8 @@ impl PlacePartState {
             place_coord: Vector3::new(0., 0., 0.),
             part,
             layout: None,
+            placement_objects,
+            placement_model,
         }
     }
 
@@ -65,7 +97,7 @@ impl PlacePartState {
         self.part_orientation = orientation::rotate_by_quat(self.part_orientation, reorient);
     }
 
-    pub fn update(&mut self, camera: &Camera, closest_ship: &ShipInterior) {
+    pub fn update(&mut self, graphics: &Graphics, camera: &Camera, closest_ship: &ShipInterior) {
         self.display = false;
         
         // Get the intersection of the mouse pointer with the body
@@ -105,13 +137,33 @@ impl PlacePartState {
         self.layout = Some(layout);
         self.interior.rigid_body.orientation = closest_ship.rigid_body.orientation * orientation::to_quat(self.part_orientation);
         self.interior.rigid_body.pos = closest_ship.rigid_body.to_global(pos_in_grid);
-        self.interior.update_graphics();
         self.display = true;
+        self.update_graphics(graphics, camera, closest_ship);
     }
 
-    pub fn place(&self, part_loader: PartLoader, closest_ship: &mut ShipInterior) {
+    pub fn update_graphics(&self, graphics: &Graphics, camera: &Camera, ship: &ShipInterior) {
+        self.interior.update_graphics(graphics, camera);
+
+        let mut i = 0;
+        let orientation = Quaternion::new(1., 0., 0., 0.,);
+        for ((x, y, z), part_number) in ship.collider.get_grid_collider().unwrap().indexed_iter() {
+            if part_number == -1 {continue;}
+            let pos = Vector3::new(x as f64 + 0.5, y as f64 + 0.5,z as f64 + 0.5);
+            self.placement_objects[i].update(graphics, ObjectUniform::new(camera, pos, orientation));
+            i += 1;
+        }
+    }
+
+    pub fn get_placement_objects(&self) -> Vec<ObjectHandle> {
+        self.placement_objects.iter().map(|o| ObjectHandle::Ref(&o)).collect::<Vec<_>>()
+    }
+
+    pub fn place(&mut self, part_loader: PartLoader, closest_ship: &mut ShipInterior) {
         if let Some(layout) = self.layout {
-            closest_ship.add_part(part_loader, self.part, layout);
+            closest_ship.add_part(part_loader.clone(), self.part, layout);
+            for _block in self.part.get_blocks(layout) {
+                self.placement_objects.push(Object::zeroed::<ObjectUniform>(part_loader.graphics, self.placement_model.clone()));
+            }
         }
     }
     

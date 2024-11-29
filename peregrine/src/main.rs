@@ -3,10 +3,10 @@ use tethys::prelude::*;
 use cgmath::{Quaternion, Vector3};
 use clap::Parser;
 
-mod dev;
-mod ship;
-mod ui;
-mod util;
+pub mod dev;
+pub mod ship;
+pub mod ui;
+pub mod util;
 
 use ship::{Panel, PanelLayout, PanelModel, Part, PartData, PartLayout, SaveShipInterior, ShipInterior};
 use ui::{FpsCounter, UiMode};
@@ -15,6 +15,7 @@ use util::Save;
 struct Peregrine<'a> {
     shader_3d: Shader,
     shader_2d: Shader,
+    shader_solid: Shader,
     shader_placement: Shader,
     camera: Camera,
     graphics: Graphics<'a>,
@@ -35,12 +36,16 @@ impl<'a> App for Peregrine<'a> {
             ShaderBinding::Object,
             ShaderBinding::NoisyTexture,
         ]).build(&graphics);
-        let shader_placement = ShaderBuilder::<LineVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
+        let shader_placement = ShaderBuilder::<PointVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Object,
         ]).set_primitive(Primitive::Line).build(&graphics);
         let shader_2d = ShaderBuilder::<ScreenVertex>::new(include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
+        ]).build(&graphics);
+        let shader_solid = ShaderBuilder::<PointVertex>::new(include_str!("shaders/shader_solid.wgsl"), &[
+            ShaderBinding::Camera,
+            ShaderBinding::Object,
         ]).build(&graphics);
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let part_data = PartData::new();
@@ -58,6 +63,7 @@ impl<'a> App for Peregrine<'a> {
             graphics,
             part_data,
             shader_placement,
+            shader_solid,
         }
     }
 
@@ -102,7 +108,7 @@ impl<'a> App for Peregrine<'a> {
             Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(3,-1,0),(-1,-1,0)], },
         ];
         let rigid_body = RigidBody {
-            angvel: Quaternion::new(0., 0., 0., 0.0),
+            angvel: Quaternion::new(0., 0., 0., 0.),
             // orientation: Quaternion::new(0., 0., 0., 1.),
             ..Default::default()
         };
@@ -114,7 +120,8 @@ impl<'a> App for Peregrine<'a> {
             rigid_body,
         };
         let ship = save.build(part_loader.clone());
-        self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }));
+        self.ui_mode = UiMode::Connections(ui::ConnectionState::new(ship::Fluid::Electricity, part_loader, &ship));
+        // self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }, &ship));
         // self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);
     }
@@ -122,25 +129,9 @@ impl<'a> App for Peregrine<'a> {
     fn tick(&mut self, key_state: &KeyState, delta_t: f64) {
         info!("FPS: {}", self.fps_counter.get_fps());
         if let Some(ship) = &mut self.ship {
-            ship.update(delta_t);
+            ship.update(&self.graphics, &self.camera, delta_t);
+            self.ui_mode.update(&self.graphics, &self.camera, ship);
         }
-
-        match &mut self.ui_mode {
-            UiMode::PlacePart(place_part_state) => {
-                if let Some(ship) = &mut self.ship {
-                    place_part_state.update(&self.camera, ship);
-                    ship.initialize_placement(self.part_data.get_loader(&self.graphics)); // TODO move to whenever this UI element is created
-                }
-            },
-            UiMode::PlacePanel(place_panel_state) => {
-                if let Some(ship) = &mut self.ship {
-                    place_panel_state.update(&self.camera, ship);
-                    ship.initialize_placement(self.part_data.get_loader(&self.graphics)); // TODO move to whenever this UI element is created
-                }
-            },
-            UiMode::Flying => (),
-            UiMode::Connections(_) => (),
-        };
 
         self.graphics.set_mouse_pos((self.graphics.size.0/2, self.graphics.size.1/2));
         if key_state.is_down(Key::Char('w')) {
@@ -193,13 +184,13 @@ impl<'a> App for Peregrine<'a> {
             UiMode::PlacePart(place_part_state) => {
                 let part_loader = self.part_data.get_loader(&self.graphics);
                 if let Some(ship) = &mut self.ship {
-                    place_part_state.place(part_loader, ship)
+                    place_part_state.place(part_loader, ship);
                 }
             },
             UiMode::PlacePanel(place_panel_state) => {
                 let part_loader = self.part_data.get_loader(&self.graphics);
                 if let Some(ship) = &mut self.ship {
-                    place_panel_state.place(part_loader, ship)
+                    place_panel_state.place(part_loader, ship);
                 }
             },
             UiMode::Flying => (),
@@ -223,27 +214,22 @@ impl<'a> App for Peregrine<'a> {
             render_pass.render(ship.objects());
         }
 
-        match self.ui_mode {
+        match &self.ui_mode {
             UiMode::Flying => (),
-            UiMode::PlacePart(_) => {
+            UiMode::PlacePart(state) => {
                 // Placement
                 render_pass.set_shader(&self.shader_placement);
-                if let Some(ship) = &self.ship {
-                    render_pass.render(ship.get_placement_objects());
-                }
+                render_pass.render(state.get_placement_objects());
             },
-            UiMode::PlacePanel(_) => {
+            UiMode::PlacePanel(state) => {
                 // Placement
                 render_pass.set_shader(&self.shader_placement);
-                if let Some(ship) = &self.ship {
-                    render_pass.render(ship.get_placement_objects());
-                }
+                render_pass.render(state.get_placement_objects());
             },
             UiMode::Connections(state) => {
-                render_pass.set_shader(&self.shader_ui);
-                if let Some(ship) = &self.ship {
-                    render_pass.render(ship.get_connected_objects(state.fluid));
-                }
+                
+                render_pass.set_shader(&self.shader_solid);
+                render_pass.render(state.get_connected_objects());
             },
         }
 

@@ -1,4 +1,4 @@
-use cgmath::{Quaternion, Rotation, Vector3};
+use cgmath::{Rotation, Vector3};
 use part::Block;
 use serde::{Deserialize, Serialize};
 use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
@@ -22,17 +22,16 @@ const PANEL_START_INDEX: usize = 65536;
 /// Contains the data of a single ship, including its internal components, its hull model, its 
 /// physics data, and its simulated properties
 pub struct ShipInterior {
-    parts: Vec<Part>,
-    part_layouts: Vec<PartLayout>,
+    pub parts: Vec<Part>,
+    pub part_layouts: Vec<PartLayout>,
     pub panels: Vec<Panel>,
     panel_layouts: Vec<PanelLayout>,
+    pub circuits: Vec<Circuit>,
 
     // Physics
     pub rigid_body: RigidBody,
-    collider: Collider,
-    placement_objects: Option<Vec<Object>>,
-    placement_model: Option<Model>,
-
+    pub collider: Collider,
+    
     // Graphics
     panel_objects: Vec<Object>,
     part_objects: Vec<Block>,
@@ -58,32 +57,36 @@ impl ShipInterior {
             part_layouts: template.part_layouts,
             collider: Collider::Grid(grid),
             rigid_body: template.rigid_body,
-            placement_objects: None,
             panels: template.panels,
             panel_layouts: template.panel_layouts,
             part_objects,
             panel_objects,
-            placement_model: None,
+            circuits: Vec::new(),
         }
     }
 
     /// Update all the objects within the ship according to the physics component
-    pub fn update(&mut self, delta_t: f64) {
+    pub fn update(&mut self, graphics: &Graphics, camera: &Camera, delta_t: f64) {
         self.rigid_body.update(delta_t);
-        self.update_graphics();
+        self.update_graphics(graphics, camera);
     }
 
     /// Update all the objects within the ship according to the physics component
-    pub fn update_graphics(&mut self) {
-        // TODO Remove this
-        for block in &mut self.part_objects {
+    pub fn update_graphics(&self, graphics: &Graphics, camera: &Camera) {
+        for block in &self.part_objects {
             let (position, orientation) = block.layout.as_physical();
-            block.object.position = self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position);
-            block.object.orientation = self.rigid_body.orientation * orientation;
+            block.object.update(graphics, ObjectUniform::new(
+                camera,
+                self.rigid_body.pos + self.rigid_body.orientation.rotate_vector(position),
+                self.rigid_body.orientation * orientation
+            ));
         }
-        for object in &mut self.panel_objects {
-            object.position = self.rigid_body.pos;
-            object.orientation = self.rigid_body.orientation;
+        for object in &self.panel_objects {
+            object.update(graphics, ObjectUniform::new(
+                camera,
+                self.rigid_body.pos,
+                self.rigid_body.orientation
+            ));
         }
     }
     
@@ -96,57 +99,6 @@ impl ShipInterior {
             output.push(ObjectHandle::Ref(object));
         }
         output
-    }
-    
-    /// Get the list of objects to be painted with the ``placing`` texture
-    pub fn get_placement_objects(&self) -> Vec<ObjectHandle> {
-        self.placement_objects.as_ref().unwrap().iter().map(|o| ObjectHandle::Ref(&o)).collect::<Vec<_>>()
-    }
-    
-    pub(crate) fn get_connected_objects(&self, fluid: Fluid) -> Vec<ObjectHandle> {
-        let mut objects = Vec::new();
-        let line_model = self.line_model.as_ref().unwrap();
-        for circuit in &self.circuits {
-            if circuit.fluid != fluid {continue};
-            for connection in &circuit.connections {
-                let start = [self.part_layouts[connection.0].x, self.part_layouts[connection.0].y, self.part_layouts[connection.0].z];
-                let stop = [self.part_layouts[connection.1].x, self.part_layouts[connection.1].y, self.part_layouts[connection.1].z];
-                objects.push(Object::new(part_loader.graphics, line_model.clone(), pos, orientation));
-
-            }
-        }
-        objects
-    }
-
-    /// Get the ship ready for placing parts
-    pub fn initialize_placement(&mut self, part_loader: PartLoader) {
-        const PLACEMENT_VERTICES: [LineVertex; 8] = [
-            LineVertex{ position: [0.5, 0.5, 0.5] },
-            LineVertex{ position: [-0.5, 0.5, 0.5] },
-            LineVertex{ position: [0.5, -0.5, 0.5] },
-            LineVertex{ position: [-0.5, -0.5, 0.5] },
-            LineVertex{ position: [0.5, 0.5, -0.5] },
-            LineVertex{ position: [-0.5, 0.5, -0.5] },
-            LineVertex{ position: [0.5, -0.5, -0.5] },
-            LineVertex{ position: [-0.5, -0.5, -0.5] },
-        ];
-        const PLACEMENT_INDICES: [u16; 24] = [
-            0, 1, 1, 3, 3, 2, 2, 0,
-            4, 5, 5, 7, 7, 6, 6, 4,
-            0, 4, 1, 5, 2, 6, 3, 7,
-        ];
-        self.placement_model = Some(Model::from_vertices(&part_loader.graphics, &PLACEMENT_VERTICES, &PLACEMENT_INDICES));
-        let placement_model = self.placement_model.as_ref().unwrap();
-        if self.placement_objects.is_none() {
-            let mut objects = Vec::new();
-            let orientation = Quaternion::new(1., 0., 0., 0.,);
-            for ((x, y, z), part_number) in self.collider.get_grid_collider().unwrap().indexed_iter() {
-                if part_number == -1 {continue;}
-                let pos = Vector3::new(x as f64 + 0.5, y as f64 + 0.5,z as f64 + 0.5);
-                objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
-            }
-            self.placement_objects = Some(objects);
-        }
     }
 
     pub(crate) fn collider_package(&self) -> ColliderPackage {
@@ -187,16 +139,6 @@ impl ShipInterior {
         let mut objects = part.get_objects(part_loader.clone(), layout);
         self.part_objects.append(&mut objects);
         add_part_to_grid(self.collider.get_grid_collider_mut().unwrap(), &part, layout, part_index);
-        let placement_model = self.placement_model.as_ref().unwrap();
-        
-        if let Some(objects) = &mut self.placement_objects {
-            // let placement_model = part_loader.load_part(PartModel::Placement);
-            let orientation = Quaternion::new(1., 0., 0., 0.,);
-            for block in part.get_blocks(layout) {
-                let pos = Vector3::new(block.x as f64, block.y as f64, block.z as f64);
-                objects.push(Object::new(part_loader.graphics, placement_model.clone(), pos, orientation));
-            }
-        }
     }
     
     pub(crate) fn add_panel(&mut self, loader: PartLoader, panel: Panel, layout: PanelLayout) {
