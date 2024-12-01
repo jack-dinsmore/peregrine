@@ -227,13 +227,14 @@ impl<'a> App for Peregrine<'a> {
                 render_pass.render(state.get_placement_objects());
             },
             UiMode::Connections(state) => {
-                
+                render_pass.clear_depth();
                 render_pass.set_shader(&self.shader_solid);
                 render_pass.render(state.get_connected_objects());
             },
         }
 
         // 2D
+        // render_pass.clear_depth();
         render_pass.set_shader(&self.shader_2d);
     }
     

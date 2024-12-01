@@ -7,7 +7,8 @@ pub mod prelude {
     pub use crate::App;
     pub use crate::io::key::{Key, KeyState};
     pub use crate::io::mouse::Mouse;
-    pub use crate::graphics::{Graphics, RenderPass};
+    pub use crate::graphics::Graphics;
+    pub use crate::graphics::render_pass::RenderPass;
     pub use crate::graphics::model::{Model, ModelContainer, ModelLoader, Material, MaterialContainer, MaterialLoader, LoadModel, LoadMaterial};
     pub use crate::graphics::shader::{Shader, ShaderBuilder, ShaderBinding};
     pub use crate::graphics::camera::Camera;
@@ -20,9 +21,10 @@ pub mod prelude {
 }
 
 use std::time::Instant;
-
-use graphics::{Graphics, RenderPass};
+use graphics::Graphics;
+use graphics::render_pass::RenderPass;
 use io::{key::KeyState, mouse::Mouse};
+use wgpu::CommandEncoder;
 use winit::{dpi::LogicalSize, event::{ElementState, Event, KeyEvent, WindowEvent}, event_loop::EventLoop, window::WindowBuilder};
 
 
@@ -111,20 +113,30 @@ async fn main_internal<T: App>() {
                 },
                 WindowEvent::RedrawRequested => {
                     window.request_redraw();
+                    if !surface_configured { return; }
 
-                    if !surface_configured {
-                        return;
-                    }
+                    let graphics = app.get_graphics();
+                    let (surface_texture, view) = graphics.start_render().unwrap();
 
-                    match app.get_graphics().render(|render_pass| app.render(render_pass)) {
-                        Ok(_) => (),
-                        // Reconfigure the surface if lost
-                        // Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => app.get_graphics().resize(),
-                        // The system is out of memory, we should probably quit
-                        Err(wgpu::SurfaceError::OutOfMemory) => control_flow.exit(),
-                        // All other errors (Outdated, Timeout) should be resolved by the next frame
-                        Err(e) => eprintln!("{:?}", e),
-                    }
+                    let mut encoder = Some(graphics.make_encoder());
+                    let encoder_ptr: *mut Option<CommandEncoder> = &mut encoder;
+                    {
+                        let mut render_pass = Some(graphics.make_render_pass(&view, encoder.as_mut().unwrap(), true));
+                        let render_pass_ptr: *mut Option<wgpu::RenderPass> = &mut render_pass;
+
+                        let clear_depth_buffer = || {
+                            let (encoder, render_pass) = unsafe { (&mut *encoder_ptr, &mut *render_pass_ptr) };
+                            std::mem::drop(render_pass.take().unwrap()); // Drop the render pass
+                            graphics.queue_encoder(encoder.take().unwrap()); // Submit the render pass
+                            // Render pass is now ended
+                            encoder.replace(graphics.make_encoder()); // Make a new encoder
+                            render_pass.replace(graphics.make_render_pass(&view, encoder.as_mut().unwrap(), false)); // Make a new render pass
+                        };
+
+                        app.render(RenderPass::new(graphics, &mut render_pass, &clear_depth_buffer));
+                    } // Render pass goes out of scope
+                    graphics.queue_encoder(encoder.take().unwrap()); // Submit the last render pass
+                    surface_texture.present(); // Finish the render 
                 }
                 _ => {}
             },

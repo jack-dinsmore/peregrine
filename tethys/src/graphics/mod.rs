@@ -3,109 +3,10 @@ pub mod shader;
 pub mod primitives;
 pub mod object;
 pub mod camera;
+pub mod render_pass;
 
-use camera::Camera;
-use model::Material;
-use object::ObjectHandle;
-use shader::Shader;
-use wgpu::SurfaceConfiguration;
+use wgpu::{CommandEncoder, SurfaceConfiguration, SurfaceTexture, TextureUsages, TextureView};
 use winit::window::Window;
-
-pub struct RenderPass<'a> {
-    graphics: &'a Graphics<'a>,
-    render_pass: wgpu::RenderPass<'a>,
-    camera: Option<&'a Camera>,
-    objects: Vec<ObjectHandle<'a>>,
-    global_material: bool,
-}
-
-impl<'a> RenderPass<'a> {
-    fn new<'b: 'a>(graphics: &'a Graphics, encoder: &'b mut wgpu::CommandEncoder, view: &'a wgpu::TextureView) -> Self {
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.01,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &graphics.depth_texture_view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
-            occlusion_query_set: None,
-            timestamp_writes: None,
-        });
-        Self {
-            graphics,
-            render_pass,
-            camera: None,
-            objects: Vec::new(),
-            global_material: false,
-        }
-    }
-
-    fn render_models(&mut self) {
-        for object in self.objects.drain(0..self.objects.len()) {
-            let object = object.as_ref();
-            self.render_pass.set_bind_group(1, &object.bind_group, &[]);
-            let model_data = &object.model.inner();
-            for mesh in &model_data.0 {//TODO rearrange orderm instances
-                if !self.global_material && model_data.1.len() > mesh.material_index {
-                    self.render_pass.set_bind_group(2, &model_data.1[mesh.material_index].inner(), &[]);
-                }
-                self.render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                self.render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                self.render_pass.draw_indexed(0..mesh.num_indices, 0, 0..1);
-            }
-        }
-    }
-
-    pub fn set_camera(&mut self, camera: &'a Camera) {
-        camera.update(&self.graphics);
-        self.camera = Some(camera);
-    }
-
-    pub fn set_shader(&mut self, shader: &'a Shader) {
-        self.render_models();
-        self.global_material = false;
-        self.render_pass.set_pipeline(&shader.render_pipeline);
-        self.render_pass.set_bind_group(0, &self.camera.expect("You must set a camera").bind_group, &[]);
-    }
-    
-    pub fn set_global_material(&mut self, material: &Material) {
-        self.global_material = true;
-        self.render_pass.set_bind_group(2, &material.inner(), &[]);
-    }
-
-    pub fn render(&mut self, objects: Vec<ObjectHandle<'a>>) {
-        for object in objects {
-            let index = match self.objects.binary_search_by(|probe| probe.as_ref().model.identifier().cmp(&object.as_ref().model.identifier())) {
-                Ok(i) => i,
-                Err(i) => i,
-            };
-            self.objects.insert(index, object);
-        }
-    }
-}
-
-impl<'a> Drop for RenderPass<'a> {
-    fn drop(&mut self) {
-        self.render_models();
-    }
-}
-
 
 pub struct Graphics<'a> {
     surface: wgpu::Surface<'a>,
@@ -119,7 +20,7 @@ pub struct Graphics<'a> {
 
 impl<'a> Graphics<'a> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: &'a Window) -> Self {
+    pub(crate) async fn new(window: &'a Window) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -181,7 +82,7 @@ impl<'a> Graphics<'a> {
         }
     }
 
-    pub fn make_depth_texture(device: &wgpu::Device, config: &SurfaceConfiguration) -> (wgpu::Texture, wgpu::TextureView, wgpu::Sampler) {
+    pub(crate) fn make_depth_texture(device: &wgpu::Device, config: &SurfaceConfiguration) -> (wgpu::Texture, wgpu::TextureView, wgpu::Sampler) {
         let size = wgpu::Extent3d { // 2.
             width: config.width,
             height: config.height,
@@ -218,7 +119,7 @@ impl<'a> Graphics<'a> {
         (texture, view, sampler)
     }
 
-    pub fn window(&self) -> &Window {
+    pub(crate) fn window(&self) -> &Window {
         &self.window
     }
 
@@ -231,20 +132,54 @@ impl<'a> Graphics<'a> {
         }
     }
 
-    pub fn render(&self, render_execute: impl FnOnce(RenderPass)) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
+    pub(crate) fn start_render(&self) -> anyhow::Result<(SurfaceTexture, TextureView)> {
+        let texture = self.surface.get_current_texture()?;
+        let view = texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        Ok((texture, view))
+    }
 
-        render_execute(RenderPass::new(self, &mut encoder, &view));
-    
-        // submit will accept anything that implements IntoIter
+    pub(crate) fn make_encoder(&self) -> CommandEncoder {
+        self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        })
+    }
+
+    pub(crate) fn make_render_pass<'b>(&self, view: &TextureView, encoder: &'b mut CommandEncoder, clear_color: bool) -> wgpu::RenderPass<'b> {
+        let color_load_op = match clear_color {
+            true => wgpu::LoadOp::Clear(wgpu::Color {
+                r: 0.01,
+                g: 0.0,
+                b: 0.0,
+                a: 1.0,
+            }),
+            false => wgpu::LoadOp::Load,
+        };
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: color_load_op,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        });
+        render_pass
+    }
+
+    pub(crate) fn queue_encoder(&self, encoder: CommandEncoder) {
         self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-    
-        Ok(())
     }
     
     pub fn set_mouse_pos(&self, size: (u32, u32)) {
