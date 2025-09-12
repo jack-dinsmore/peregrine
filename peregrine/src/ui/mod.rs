@@ -1,9 +1,10 @@
 mod place_part;
 mod place_panel;
 mod fps;
-mod connections;
+mod place_connection;
+mod place_tools;
 
-pub use connections::ConnectionState;
+pub use place_connection::PlaceConnectionState;
 pub use place_part::PlacePartState;
 pub use place_panel::PlacePanelState;
 pub use fps::FpsCounter;
@@ -11,11 +12,12 @@ use tethys::prelude::{Camera, Graphics};
 
 use crate::ship::ShipInterior;
 
+
 pub enum UiMode {
     Flying,
     PlacePart(PlacePartState),
     PlacePanel(PlacePanelState),
-    Connections(ConnectionState),
+    PlaceConnection(PlaceConnectionState),
 }
 
 impl UiMode {
@@ -24,7 +26,7 @@ impl UiMode {
             UiMode::Flying => (),
             UiMode::PlacePart(state) => state.update(graphics, camera, closest_ship),
             UiMode::PlacePanel(state) => state.update(graphics, camera, closest_ship),
-            UiMode::Connections(state) => state.update(graphics, camera, closest_ship),
+            UiMode::PlaceConnection(state) => state.update(graphics, camera, closest_ship),
         }
     }
 }

@@ -62,7 +62,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Lighting
     let pos = in.world_position.xyz;
     let surface_to_light = normalize(camera.light_pos.xyz - pos);
-    let normal = in.normal;
+    let bump_normal = textureSample(t_normal, s_normal, in.tex_coords).rgb - vec3(0.5, 0.5, 0.5);
+    let normal = normalize(in.normal + bump_normal);
     let surface_to_light_dot_normal = dot(surface_to_light, normal);
     if surface_to_light_dot_normal < 0. {
         return vec4(0., 0., 0., 1.);
@@ -70,14 +71,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let surface_to_reflect = 2 * surface_to_light_dot_normal * normal - surface_to_light;
     let surface_to_camera = normalize(-pos);
-    let diffuse_color = vec3(1., 1., 1.) ;
-    let diffuse_coeff = 1.;
-    let power = material.light_info.z * 1.;
+    let texture_output = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    let diffuse_color = texture_output.rgb;
+    let diffuse_coeff = (1. - texture_output.a*texture_output.a);
+    let power = material.light_info.z * texture_output.a;
 
     let specular_color = vec3(1., 1., 1.);
     let color = (
         diffuse_coeff * diffuse_color * material.light_info.x * surface_to_light_dot_normal// Diffuse
-        // + diffuse_color * material.light_info.y * pow(max(dot(surface_to_camera, surface_to_reflect), 0.), power)// Specular
+        + diffuse_color * material.light_info.y * pow(max(dot(surface_to_camera, surface_to_reflect), 0.), power)// Specular
     );
     let overage = max(color.r, 1.) + max(color.g, 1.) + max(color.b, 1.) - 3.;
     return vec4(

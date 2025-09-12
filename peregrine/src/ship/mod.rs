@@ -1,16 +1,22 @@
+use std::collections::HashMap;
+
 use cgmath::{Rotation, Vector3};
 use part::Block;
 use serde::{Deserialize, Serialize};
 use tethys::{physics::collisions::{ColliderPackage, GridCollider}, prelude::*};
 
 mod part;
+mod attachment;
 mod panel;
 mod grid;
 mod circuit;
 pub mod orientation;
+mod part_loader;
 
-pub use part::{Part, PartLayout,  PartData, PartLoader};
-pub use panel::{Panel, PanelModel, PanelLayout};
+pub use part_loader::{PartData, PartLoader};
+pub use part::{Part, PartLayout};
+pub use panel::{Panel, PanelLayout};
+pub use attachment::{Attachment, AttachmentModel, AttachmentLayout};
 pub use grid::*;
 pub use circuit::{Circuit, Fluid};
 
@@ -25,8 +31,10 @@ pub struct ShipInterior {
     pub parts: Vec<Part>,
     pub part_layouts: Vec<PartLayout>,
     pub panels: Vec<Panel>,
-    panel_layouts: Vec<PanelLayout>,
-    pub circuits: Vec<Circuit>,
+    pub panel_layouts: Vec<PanelLayout>,
+    pub attachments: Vec<Attachment>,
+    pub attachment_layouts: Vec<AttachmentLayout>,
+    pub connections: HashMap<Fluid, Vec<(usize,usize)>>,
 
     // Physics
     pub rigid_body: RigidBody,
@@ -50,7 +58,7 @@ impl ShipInterior {
             if let Some(object) = panel.get_object(loader.clone(), *layout) {
                 panel_objects.push(object);
             }
-            add_panel_to_grid(&mut grid, panel, (PANEL_START_INDEX + i) as isize);
+            add_panel_to_grid(&mut grid, *layout, (PANEL_START_INDEX + i) as isize);
         }
         Self {
             parts: template.parts,
@@ -61,7 +69,9 @@ impl ShipInterior {
             panel_layouts: template.panel_layouts,
             part_objects,
             panel_objects,
-            circuits: Vec::new(),
+            connections: HashMap::new(),
+            attachments: Vec::new(),
+            attachment_layouts: Vec::new(),
         }
     }
 
@@ -149,7 +159,7 @@ impl ShipInterior {
             self.panel_objects.push(object);
         }
         let grid = self.collider.get_grid_collider_mut().unwrap();
-        add_panel_to_grid(grid, &panel, panel_index);
+        add_panel_to_grid(grid, layout, panel_index);
     }
 }
 
@@ -160,11 +170,27 @@ pub struct SaveShipInterior {
     pub part_layouts: Vec<PartLayout>,
     pub panels: Vec<Panel>,
     pub panel_layouts: Vec<PanelLayout>,
+    pub attachments: Vec<Attachment>,
+    pub attachment_layouts: Vec<AttachmentLayout>,
     pub rigid_body: RigidBody,
 }
 
 impl Save<ShipInterior, PartLoader<'_>> for SaveShipInterior {
     fn build(self, loader: PartLoader) -> ShipInterior {
         ShipInterior::new(loader, self)
+    }
+}
+
+impl Default for SaveShipInterior {
+    fn default() -> Self {
+        Self {
+            parts: Vec::new(),
+            part_layouts: Vec::new(),
+            panels: Vec::new(),
+            panel_layouts: Vec::new(),
+            attachments: Vec::new(),
+            attachment_layouts: Vec::new(),
+            rigid_body: RigidBody::default(),
+        }
     }
 }

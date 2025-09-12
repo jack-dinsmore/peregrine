@@ -75,7 +75,7 @@ impl GridCollider {
         }
     }
 
-    pub(crate) fn check_line(&self, line: LineCollider) -> CollisionReport {
+    pub fn check_line(&self, line: LineCollider) -> CollisionReport {
         // Find the line segment intersecting the cube
         let mut start_alpha = line.start.unwrap_or(-f64::INFINITY);
         let mut stop_alpha = line.stop.unwrap_or(f64::INFINITY);

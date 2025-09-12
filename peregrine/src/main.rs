@@ -8,14 +8,13 @@ pub mod ship;
 pub mod ui;
 pub mod util;
 
-use ship::{Panel, PanelLayout, PanelModel, Part, PartData, PartLayout, SaveShipInterior, ShipInterior};
+use ship::{Panel, PanelLayout, Part, PartData, PartLayout, SaveShipInterior, ShipInterior};
 use ui::{FpsCounter, UiMode};
 use util::Save;
 
 struct Peregrine<'a> {
     shader_3d: Shader,
     shader_2d: Shader,
-    shader_solid: Shader,
     shader_placement: Shader,
     camera: Camera,
     graphics: Graphics<'a>,
@@ -36,16 +35,12 @@ impl<'a> App for Peregrine<'a> {
             ShaderBinding::Object,
             ShaderBinding::NoisyTexture,
         ]).build(&graphics);
-        let shader_placement = ShaderBuilder::<PointVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
+        let shader_placement = ShaderBuilder::<TexVertex>::new(include_str!("shaders/shader_placement.wgsl"), &[
             ShaderBinding::Camera,
             ShaderBinding::Object,
         ]).set_primitive(Primitive::Line).build(&graphics);
         let shader_2d = ShaderBuilder::<ScreenVertex>::new(include_str!("shaders/shader_2d.wgsl"), &[
             ShaderBinding::Texture,
-        ]).build(&graphics);
-        let shader_solid = ShaderBuilder::<PointVertex>::new(include_str!("shaders/shader_solid.wgsl"), &[
-            ShaderBinding::Camera,
-            ShaderBinding::Object,
         ]).build(&graphics);
         let camera = Camera::new(&graphics, Vector3::new(-2., 0., 0.), 1.57, 0., 0.1, 10., 1.5);
         let part_data = PartData::new();
@@ -63,7 +58,6 @@ impl<'a> App for Peregrine<'a> {
             graphics,
             part_data,
             shader_placement,
-            shader_solid,
         }
     }
 
@@ -88,25 +82,6 @@ impl<'a> App for Peregrine<'a> {
             PartLayout { x: -2, y: -1, z: 0, orientation: 8 },
             PartLayout { x: 2, y: 0, z: 0, orientation: 0 },
         ];
-        let panels = vec![
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(0,1,2),(-1,1,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,1,1),(-1,0,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(-1,0,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(-1,1,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,1,2),(-1,2,1),(3,2,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(0,0,2),(-1,-1,1),(3,-1,1)], },
-
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,0),(-1,2,0),(3,2,0)], },//Bottom
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,0),(3,2,0),(3,-1,0)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(-1,2,0),(-1,-1,0)], },//Back
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(-1,2,0),(-1,2,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(3,-1,1),(3,2,0),(3,-1,0)], },//Front
-            Panel {panel_model: PanelModel::Metal, vertices:[(3,-1,1),(3,2,0),(3,2,1)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,2,1),(3,2,0),(3,2,1)], },//Left
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,2,1),(3,2,0),(-1,2,0)], },
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(3,-1,0),(3,-1,1)], },//Right
-            Panel {panel_model: PanelModel::Metal, vertices:[(-1,-1,1),(3,-1,0),(-1,-1,0)], },
-        ];
         let rigid_body = RigidBody {
             angvel: Quaternion::new(0., 0., 0., 0.),
             // orientation: Quaternion::new(0., 0., 0., 1.),
@@ -115,13 +90,33 @@ impl<'a> App for Peregrine<'a> {
         let save = SaveShipInterior {
             parts,
             part_layouts: layout,
-            panels: panels.clone(),
-            panel_layouts: vec![PanelLayout{}; panels.len()],
+            panels: vec![Panel::Metal; 16],
+            panel_layouts: vec![
+                PanelLayout { vertices:[(0,0,2),(0,1,2),(-1,1,1)], },
+                PanelLayout { vertices:[(0,0,2),(-1,1,1),(-1,0,1)], },
+                PanelLayout { vertices:[(0,0,2),(-1,-1,1),(-1,0,1)], },
+                PanelLayout { vertices:[(0,1,2),(-1,2,1),(-1,1,1)], },
+                PanelLayout { vertices:[(0,1,2),(-1,2,1),(3,2,1)], },
+                PanelLayout { vertices:[(0,0,2),(-1,-1,1),(3,-1,1)], },
+    
+                PanelLayout { vertices:[(-1,-1,0),(-1,2,0),(3,2,0)], },//Bottom
+                PanelLayout { vertices:[(-1,-1,0),(3,2,0),(3,-1,0)], },
+                PanelLayout { vertices:[(-1,-1,1),(-1,2,0),(-1,-1,0)], },//Back
+                PanelLayout { vertices:[(-1,-1,1),(-1,2,0),(-1,2,1)], },
+                PanelLayout { vertices:[(3,-1,1),(3,2,0),(3,-1,0)], },//Front
+                PanelLayout { vertices:[(3,-1,1),(3,2,0),(3,2,1)], },
+                PanelLayout { vertices:[(-1,2,1),(3,2,0),(3,2,1)], },//Left
+                PanelLayout { vertices:[(-1,2,1),(3,2,0),(-1,2,0)], },
+                PanelLayout { vertices:[(-1,-1,1),(3,-1,0),(3,-1,1)], },//Right
+                PanelLayout { vertices:[(-1,-1,1),(3,-1,0),(-1,-1,0)], },
+            ],
+            attachments: Vec::new(),
+            attachment_layouts: Vec::new(),
             rigid_body,
         };
         let ship = save.build(part_loader.clone());
-        self.ui_mode = UiMode::Connections(ui::ConnectionState::new(ship::Fluid::Electricity, part_loader, &ship));
-        // self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }, &ship));
+        // self.ui_mode = UiMode::PlaceConnection(ui::PlaceConnectionState::new(ship::Fluid::Electricity, part_loader));
+        self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }));
         // self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);
     }
@@ -194,7 +189,11 @@ impl<'a> App for Peregrine<'a> {
                 }
             },
             UiMode::Flying => (),
-            UiMode::Connections(_) => todo!(),
+            UiMode::PlaceConnection(place_connection_state) => {
+                if let Some(ship) = &mut self.ship {
+                    place_connection_state.place(ship);
+                }
+            },
         }
     }
 
@@ -214,22 +213,17 @@ impl<'a> App for Peregrine<'a> {
             render_pass.render(ship.objects());
         }
 
+        render_pass.set_shader(&self.shader_placement);
         match &self.ui_mode {
             UiMode::Flying => (),
             UiMode::PlacePart(state) => {
-                // Placement
-                render_pass.set_shader(&self.shader_placement);
-                render_pass.render(state.get_placement_objects());
+                render_pass.render(state.get_objects());
             },
             UiMode::PlacePanel(state) => {
-                // Placement
-                render_pass.set_shader(&self.shader_placement);
-                render_pass.render(state.get_placement_objects());
+                render_pass.render(state.get_objects());
             },
-            UiMode::Connections(state) => {
-                render_pass.clear_depth();
-                render_pass.set_shader(&self.shader_solid);
-                render_pass.render(state.get_connected_objects());
+            UiMode::PlaceConnection(state) => {
+                render_pass.render(state.get_objects());
             },
         }
 

@@ -14,14 +14,25 @@ Other space games such as KSP and Space Engineers do this, but their ships are n
 
 ## Todo
 
-### Wiring
-* Internal linking of power lines and controls
+### Attachments
+* Place attachments
+* Pipe models (should be able to adjust vertices during placement)
+* Connecting pipes between attachments
+* Recolor hubs for different fluid types
+
+## Placement
+* Fix bug with placing the parts
+* Prevent parts from being placed where attachments are
+* Make the part transparent where it's being placed
+
+### Controls
 * Control panels
-* Computer block
+* Computer block?
 
 ### Ship aesthetics
 * Better metal shader
 * UI to select which blocks to place and how to turn off placement
+* Shadows
 
 ### Planets
 * Terrain rendering

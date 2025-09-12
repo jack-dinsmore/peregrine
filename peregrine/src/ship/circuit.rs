@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Fluid {
     Electricity,
     Hydrogen
@@ -19,4 +19,8 @@ pub struct Circuit {
     parts: Vec<usize>,
     pub connections: Vec<(usize, usize)>,
     quantity: f64,
+}
+
+impl Circuit {
+    
 }

@@ -1,6 +1,6 @@
 use cgmath::{InnerSpace, Vector3};
 use tethys::{physics::collisions::ColliderPackage, prelude::*};
-use super::{Panel, Part, PartLayout};
+use super::{PanelLayout, Part, PartLayout};
 
 
 /// Add a part to the grid, where data represents the index of the part
@@ -28,8 +28,8 @@ pub(super) fn add_part_to_grid(collider: &mut GridCollider, part: &Part, layout:
 }
 
 /// Add a panel to the grid, where data represents the index of the panel
-pub(super) fn add_panel_to_grid(grid: &mut GridCollider, panel: &Panel, index: isize) {
-    for (x, y, z) in get_triangle_intersections(grid, panel.vertices) {
+pub(super) fn add_panel_to_grid(grid: &mut GridCollider, layout: PanelLayout, index: isize) {
+    for (x, y, z) in get_triangle_intersections(grid, layout.vertices) {
         *grid.get_entry_mut(x, y, z).unwrap() = index;
     }
 }

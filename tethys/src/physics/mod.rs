@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Quaternion, Rotation, Vector3, Zero};
+use cgmath::{InnerSpace, Matrix4, Quaternion, Rotation, Vector3, Zero};
 use serde::{Deserialize, Serialize};
 
 pub mod collisions;
@@ -58,6 +58,17 @@ impl RigidBody {
     
     pub fn to_global(&self, v: Vector3<f64>) -> Vector3<f64> {
         self.orientation.rotate_vector(v) + self.pos
+    }
+    
+    pub fn get_mvp(&self, camera: &crate::prelude::Camera) -> Matrix4<f32> {
+        let rot = Matrix4::from(Quaternion::new(
+            self.orientation.s as f32,
+            self.orientation.v.x as f32,
+            self.orientation.v.y as f32,
+            self.orientation.v.z as f32,
+        ));
+        let world = Matrix4::from_translation((self.pos - camera.position).cast::<f32>().unwrap()) * rot;
+        return world * camera.get_view() * camera.get_proj();
     }
 }
 

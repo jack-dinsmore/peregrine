@@ -25,7 +25,7 @@ impl CameraUniform {
     fn new(matrix: Matrix4<f32>) -> Self {
         Self {
             view_proj: matrix.into(),
-            light_pos: [0., 0., 0., 0.]
+            light_pos: [10., 10., 10., 0.]
         }
     }
 }

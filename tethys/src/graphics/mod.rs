@@ -5,7 +5,7 @@ pub mod object;
 pub mod camera;
 pub mod render_pass;
 
-use wgpu::{CommandEncoder, SurfaceConfiguration, SurfaceTexture, TextureUsages, TextureView};
+use wgpu::{CommandEncoder, SurfaceConfiguration, SurfaceTexture, TextureView};
 use winit::window::Window;
 
 pub struct Graphics<'a> {
