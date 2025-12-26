@@ -11,7 +11,7 @@ pub struct PlacePartState {
 
 
 impl PlacePartState {
-    pub fn new(part_loader: PartLoader, part: Part) -> Self {
+    pub fn new(part_loader: PartLoader, part: Part, ship: &ShipInterior) -> Self {
         // Initialize the new part
         let layout = PartLayout { x: 0, y: 0, z: 0, orientation: 0 };
         let save = SaveShipInterior {
@@ -21,7 +21,7 @@ impl PlacePartState {
         };
 
         Self {
-            tools: PlacementTools::new(part_loader.clone(), save.build(part_loader)),
+            tools: PlacementTools::new(part_loader.clone(), save.build(part_loader), ship),
         }
     }
 
@@ -78,7 +78,7 @@ impl PlacePartState {
         }
     }
 
-    pub fn get_objects(&self) -> Vec<ObjectHandle> {
+    pub fn get_objects(&self) -> Vec<ObjectHandle<'_>> {
         self.tools.get_placement_objects()
     }
 }

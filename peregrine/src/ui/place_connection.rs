@@ -14,13 +14,13 @@ pub struct PlaceConnectionState {
 }
 
 impl PlaceConnectionState {
-    pub fn new(part_loader: PartLoader, fluid: Fluid) -> Self {
+    pub fn new(part_loader: PartLoader, fluid: Fluid, ship: &ShipInterior) -> Self {
         let attachment = match fluid {
             Fluid::Electricity => Attachment::CircuitHub,
             Fluid::Hydrogen => Attachment::HydrogenHub,
         };
         let layout = AttachmentLayout { x: 0., y: 0., z: 0., orientation: 0 };
-        let ship = crate::ship::SaveShipInterior {
+        let interior = crate::ship::SaveShipInterior {
             attachments: vec![attachment],
             attachment_layouts: vec![layout],
             ..Default::default()
@@ -28,7 +28,7 @@ impl PlaceConnectionState {
         Self {
             fluid,
             selected_index: None,
-            tools: PlacementTools::new(part_loader.clone(), ship.build(part_loader)),
+            tools: PlacementTools::new(part_loader.clone(), interior.build(part_loader), ship),
             existing: None,
         }
     }
@@ -124,7 +124,7 @@ impl PlaceConnectionState {
         }
     }
 
-    pub fn get_objects(&self) -> Vec<ObjectHandle> {
+    pub fn get_objects(&self) -> Vec<ObjectHandle<'_>> {
         self.tools.get_placement_objects()
         // TODO draw pipe too
     }

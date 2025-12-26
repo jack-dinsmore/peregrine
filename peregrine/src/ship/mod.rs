@@ -100,7 +100,7 @@ impl ShipInterior {
         }
     }
     
-    pub fn objects(&self) -> Vec<ObjectHandle> {
+    pub fn objects(&self) -> Vec<ObjectHandle<'_>> {
         let mut output = Vec::with_capacity(self.parts.len() + self.panels.len());
         for block in &self.part_objects {
             output.push(ObjectHandle::Ref(&block.object));
@@ -111,7 +111,7 @@ impl ShipInterior {
         output
     }
 
-    pub(crate) fn collider_package(&self) -> ColliderPackage {
+    pub(crate) fn collider_package(&self) -> ColliderPackage<'_> {
         (&self.collider, &self.rigid_body).into()
     }
     

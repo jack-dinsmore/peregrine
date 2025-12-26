@@ -16,10 +16,10 @@ const PLACEMENT_VERTICES: [PointVertex ; 8] = [
     PointVertex { position: [0.5, -0.5, -0.5] },
     PointVertex { position: [-0.5, -0.5, -0.5] },
 ];
-const PLACEMENT_INDICES: [u16; 24] = [
-    0, 1, 1, 3, 3, 2, 2, 0,
-    4, 5, 5, 7, 7, 6, 6, 4,
-    0, 4, 1, 5, 2, 6, 3, 7,
+const PLACEMENT_INDICES: [u16; 3] = [
+    0, 1, 2,//, 1, 3, 3, 2, 2, 0,
+    // 4, 5, 5, 7, 7, 6, 6, 4,
+    // 0, 4, 1, 5, 2, 6, 3, 7,
 ];
 
 /// Find the grid cell which contains this point
@@ -52,7 +52,7 @@ pub struct PlacementTools {
     placement_objects: Vec<Object>,
 }
 impl PlacementTools {
-    pub fn new(part_loader: PartLoader, ship: ShipInterior) -> Self {
+    pub fn new(part_loader: PartLoader, interior: ShipInterior, ship: &ShipInterior) -> Self {
         let placement_model = Model::from_vertices(&part_loader.graphics, &PLACEMENT_VERTICES, &PLACEMENT_INDICES);
         let mut placement_objects = Vec::new();
         for (_, part_number) in ship.collider.get_grid_collider().unwrap().indexed_iter() {
@@ -62,7 +62,7 @@ impl PlacementTools {
 
         Self {
             display: false,
-            interior: ship,
+            interior,
             roll: 0,
             ship_location: None,
             placement_model,
@@ -108,7 +108,7 @@ impl PlacementTools {
     }
 
     /// Get all renderable objects
-    pub fn get_placement_objects(&self) -> Vec<ObjectHandle> {
+    pub fn get_placement_objects(&self) -> Vec<ObjectHandle<'_>> {
         let mut placement_objects = self.placement_objects.iter().map(|o| ObjectHandle::Ref(&o)).collect::<Vec<_>>();
         if self.display {
             placement_objects.append(&mut self.interior.objects());

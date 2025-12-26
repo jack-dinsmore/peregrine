@@ -13,7 +13,7 @@ pub struct PlacePanelState {
     tools: PlacementTools,
 }
 impl PlacePanelState {
-    pub fn new(loader: PartLoader, panel: Panel) -> Self {
+    pub fn new(loader: PartLoader, panel: Panel, ship: &ShipInterior) -> Self {
         let layout = PanelLayout {
             vertices: [(0, 0, 0); 3],
         };
@@ -26,7 +26,7 @@ impl PlacePanelState {
         Self {
             panel_layout: layout,
             num_vertices_placed: 0,
-            tools: PlacementTools::new(loader.clone(), save.build(loader)),
+            tools: PlacementTools::new(loader.clone(), save.build(loader), ship),
         }
     }
 
@@ -75,7 +75,7 @@ impl PlacePanelState {
         }
     }
 
-    pub fn get_objects(&self) -> Vec<ObjectHandle> {
+    pub fn get_objects(&self) -> Vec<ObjectHandle<'_>> {
         self.tools.get_placement_objects()
     }
 }

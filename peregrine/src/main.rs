@@ -116,7 +116,7 @@ impl<'a> App for Peregrine<'a> {
         };
         let ship = save.build(part_loader.clone());
         // self.ui_mode = UiMode::PlaceConnection(ui::PlaceConnectionState::new(ship::Fluid::Electricity, part_loader));
-        self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }));
+        self.ui_mode = UiMode::PlacePart(ui::PlacePartState::new(part_loader, Part::Tank { length: 3 }, &ship));
         // self.ui_mode = UiMode::PlacePanel(PlacePanelState::new(part_loader, PanelModel::Metal));
         self.ship = Some(ship);
     }
@@ -232,7 +232,7 @@ impl<'a> App for Peregrine<'a> {
         render_pass.set_shader(&self.shader_2d);
     }
     
-    fn get_graphics(&self) -> &Graphics {
+    fn get_graphics(&self) -> &Graphics<'_> {
         &self.graphics
     }
 
